@@ -1,0 +1,17 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next
+/out
+
+# env — nunca se versiona; usa .env.local.example como plantilla
+.env
+.env.local
+.env*.local
+
+# macOS
+.DS_Store
+
+# logs
+npm-debug.log*
