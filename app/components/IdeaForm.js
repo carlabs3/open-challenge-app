@@ -10,8 +10,12 @@ import IdentityFields, { EMPTY_IDENTITY, validateIdentity } from "./IdentityFiel
  * et de son handler (:1548). Deux champs publics (titre, angle), une description
  * privée, disciplines présentes et profils recherchés.
  *
- * Si la personne n'est pas connectée, le bloc identité l'inscrit d'abord
- * (auth.register pose la cookie), puis on crée l'idée.
+ * Parcours « première action = inscription » : si la personne n'est pas
+ * connectée, on l'inscrit d'abord (auth.register pose la cookie), puis on crée
+ * l'idée. Ces deux appels sont séparés : si l'inscription réussit mais que la
+ * création échoue, le compte EXISTE — on le dit clairement et on propose de
+ * réessayer la seule action, sans ressaisir l'identité (sinon un 2e essai
+ * donnerait « adresse déjà inscrite » et bloquerait la personne).
  */
 export default function IdeaForm({ challengeRef, editing, me, onDone, onCancel }) {
   const [title, setTitle] = useState(editing?.title || "");
@@ -22,23 +26,31 @@ export default function IdeaForm({ challengeRef, editing, me, onDone, onCancel }
   const [ident, setIdent] = useState(EMPTY_IDENTITY);
   const [err, setErr] = useState({});
   const [busy, setBusy] = useState(false);
+  // Compte déjà créé pendant cette tentative : on ne re-register plus, on retente l'action.
+  const [accountCreated, setAccountCreated] = useState(false);
+  // Message « compte créé mais action échouée » (avec bouton réessayer).
+  const [splitError, setSplitError] = useState("");
 
+  const identityNeeded = !me && !accountCreated;
   const toggle = (arr, setArr, k) => setArr(arr.includes(k) ? arr.filter((x) => x !== k) : [...arr, k]);
   const Err = ({ msg }) => (msg ? <p className="err">{msg}</p> : null);
 
   async function submit(e) {
-    e.preventDefault();
+    if (e?.preventDefault) e.preventDefault();
+    setSplitError("");
+
     const next = {};
     if (title.trim().length < 8) next.title = "Donnez un titre d'au moins huit caractères.";
     if (angle.trim().length < 20) next.angle = "Décrivez votre angle en une phrase complète.";
-    let identErr = {};
-    if (!me) identErr = validateIdentity(ident);
+    const identErr = identityNeeded ? validateIdentity(ident) : {};
     setErr({ ...next, ...identErr });
     if (Object.keys(next).length || Object.keys(identErr).length) return;
 
     setBusy(true);
-    try {
-      if (!me) {
+
+    // 1. Inscription (si nécessaire). Un échec ici est une erreur normale.
+    if (identityNeeded) {
+      try {
         await auth.register({
           name: ident.name.trim(),
           email: ident.email.trim(),
@@ -47,14 +59,23 @@ export default function IdeaForm({ challengeRef, editing, me, onDone, onCancel }
           disc: ident.disc,
           visible: ident.visible,
         });
+        setAccountCreated(true);
+      } catch (regErr) {
+        setErr({ form: regErr.message });
+        setBusy(false);
+        return;
       }
-      // Sans profil présent coché, le serveur reprend les disciplines de la personne.
+    }
+
+    // 2. Action. Si elle échoue alors qu'on vient de créer le compte, on le dit.
+    try {
       const payload = { title: title.trim(), angle: angle.trim(), full: full.trim(), has, want };
       if (editing) await updateIdea(editing.id, payload);
       else await createIdea({ challengeRef, ...payload });
       await onDone(editing ? "Modifications enregistrées." : "Idée publiée et inscription enregistrée.");
-    } catch (e2) {
-      setErr({ form: e2.message });
+    } catch (actionErr) {
+      if (!me) setSplitError(actionErr.message); // compte créé (ou déjà créé), action KO
+      else setErr({ form: actionErr.message }); // déjà connecté : erreur d'action normale
     } finally {
       setBusy(false);
     }
@@ -67,8 +88,22 @@ export default function IdeaForm({ challengeRef, editing, me, onDone, onCancel }
         Deux champs sont publics : le titre et l'angle. La description complète n'est lue que par
         l'organisation et le porteur du défi.
       </p>
+
+      {splitError && (
+        // TODO à valider — message nouveau (compte créé mais action échouée).
+        <div className="warn" style={{ maxWidth: "62ch", marginBottom: "22px" }}>
+          <p>
+            Votre compte a bien été créé, mais l'idée n'a pas pu être publiée : {splitError} Vous êtes
+            maintenant identifié — réessayez, vos informations sont conservées.
+          </p>
+          <button type="button" className="btn btn-s btn-p" style={{ marginTop: "14px" }} disabled={busy} onClick={() => submit()}>
+            Réessayer de publier
+          </button>
+        </div>
+      )}
+
       <form id="idea-form" noValidate onSubmit={submit}>
-        {!me && <IdentityFields value={ident} onChange={setIdent} errors={err} />}
+        {identityNeeded && <IdentityFields value={ident} onChange={setIdent} errors={err} />}
         <div>
           <label htmlFor="i-title">
             Titre de l'idée <span className="hint" style={{ display: "inline" }}>public</span>
