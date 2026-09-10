@@ -1,4 +1,5 @@
 import HomeChallenges from "./components/HomeChallenges";
+import HeroMedia from "./components/HeroMedia";
 import { OrgLogo, France2030Logo } from "./components/OrgLogo";
 
 /**
@@ -10,7 +11,7 @@ export default function HomePage() {
   return (
     <div className="view on" id="v-home">
       <div className="hero">
-        <div className="hero-media motif" id="hero-media" aria-hidden="true"></div>
+        <HeroMedia />
         <div className="wrap">
           <p className="lab">
             1<sup>er</sup> Open Challenge · ULHN × HAROPA Port
@@ -213,12 +214,12 @@ export default function HomePage() {
           <h2 style={{ margin: "14px 0 34px" }}>Organisateurs et partenaires.</h2>
           <div className="orgs">
             <div className="org">
-              <OrgLogo src="/logos/ulhn.svg" alt="Université Le Havre Normandie" />
+              <OrgLogo src="/logos/ulhn.png" alt="Université Le Havre Normandie" />
               <b>Université Le Havre Normandie</b>
               <span>Organisateur</span>
             </div>
             <div className="org">
-              <OrgLogo src="/logos/haropa-port.svg" alt="HAROPA Port" />
+              <OrgLogo src="/logos/haropa-port.png" alt="HAROPA Port" />
               <b>HAROPA Port</b>
               <span>Porteur des défis</span>
             </div>

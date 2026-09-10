@@ -60,8 +60,9 @@ export default function Header() {
       <header className="top">
         <div className="wrap">
           <div className="brand">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logos/haropa-port.svg" alt="" onError={(e) => e.currentTarget.remove()} />
+            {/* Pas de logo ici : sur le fond sombre (Midnight Violet), un wordmark
+                noir serait invisible. Les logos partenaires vivent dans la
+                section « Organisé par » de l'accueil (fond clair). */}
             <span style={{ display: "block" }}>
               <b>Open Challenge</b>
               <span>ULHN × HAROPA PORT</span>
