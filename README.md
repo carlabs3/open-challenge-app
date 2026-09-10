@@ -79,13 +79,13 @@ las instrucciones que imprime el propio script.
 
 Orden de trabajo en `PLAN.md`. Hechos:
 
-1. ✅ Modelos y seed de desafíos
+1. ✅ Modelos y seed (desafíos + datos de prueba de la maqueta)
 2. ✅ Autenticación (cookie de sesión)
 3. ✅ Endpoints de lectura (desafíos, detalle, participantes)
-4. 🔧 Portar el frontend a React — **hecho: home**. Pendientes: lista de
-   desafíos, detalle, participantes, participer, mon espace.
-5. ⬜ Endpoints de escritura
-6. ⬜ Correos (Resend)
+4. ✅ Frontend completo: home, defis, detalle, participants, participer, mon-espace
+5. ✅ Endpoints de escritura (proponer, editar, cerrar, pedir, aceptar, rechazar, invitar)
+6. ⬜ Correos (Resend) — por ahora las acciones crean las notificaciones en base
+   y dejan un `TODO` donde iría el envío
 7. ⬜ Administración (por ahora, a mano desde MongoDB Atlas)
 8. ⬜ Recordatorio de 72 h (cron de Vercel)
 
