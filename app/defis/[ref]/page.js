@@ -103,7 +103,6 @@ export default function ChallengeDetailPage({ params }) {
     ["Référent", ch.referent || "—"],
     ["Idées déposées", String(opens.length + closed.length)],
     ["Équipes ouvertes", String(opens.length)],
-    ["Nombre d'équipes", "non limité"],
     ["Clôture des équipes", "26 octobre"],
   ];
 
