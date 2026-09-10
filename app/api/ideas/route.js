@@ -2,6 +2,8 @@ import { dbConnect } from "@/lib/db";
 import { Challenge, Idea, Participant, DISCIPLINES } from "@/lib/models";
 import { getSessionParticipant } from "@/lib/session";
 import { notify, notifyMany } from "@/lib/notify";
+import { send } from "@/lib/mail";
+import { ideePubliee, ideePublieeOrga } from "@/lib/emails";
 import { handler, json, fail } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -69,14 +71,20 @@ export const POST = handler(async (req) => {
     return fail("Vous faites déjà partie d'une équipe. Une seule équipe par personne.", 409);
   }
 
-  // Prévenir : le coordinateur et l'organisation (voir API.md).
+  // Prévenir : le coordinateur et l'organisation (notification + mail, ensemble).
   await notify(me._id, "equipe", `Idée « ${title} » publiée sur le défi ${challenge.ref}.`);
-  const staff = await Participant.find({ role: { $in: ["organisateur", "admin"] } }).select("_id").lean();
+  await send({ to: me.email, ...ideePubliee({ name: me.name, title, ref: challenge.ref }) }); // mail 2a
+
+  const staff = await Participant.find({ role: { $in: ["organisateur", "admin"] } }).select("_id email").lean();
   await notifyMany(
     staff.map((s) => s._id),
     "equipe",
     `Nouvelle idée « ${title} » sur le défi ${challenge.ref}, à relire.`
   );
+  for (const s of staff) {
+    // mail 2b — avis à l'organisation
+    await send({ to: s.email, ...ideePublieeOrga({ title, ref: challenge.ref, coordName: me.name }) });
+  }
 
   return json({ idea: idea.toPublic({ member: true }) }, 201);
 });

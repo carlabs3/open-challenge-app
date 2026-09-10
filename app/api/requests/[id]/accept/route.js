@@ -2,6 +2,8 @@ import { dbConnect } from "@/lib/db";
 import { Participant, Idea, JoinRequest } from "@/lib/models";
 import { getSessionParticipant } from "@/lib/session";
 import { notify } from "@/lib/notify";
+import { send } from "@/lib/mail";
+import { demandeAcceptee } from "@/lib/emails";
 import { handler, json, fail } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +86,7 @@ export const POST = handler(async (_req, { params }) => {
     "equipe",
     `Votre demande pour « ${idea.title} » a été acceptée. Vous faites maintenant partie de l'équipe.`
   );
+  await send({ to: claimed.email, ...demandeAcceptee({ name: claimed.name, title: idea.title }) }); // mail 4a
   for (const other of cancelled) {
     const otherIdea = await Idea.findById(other.idea).lean();
     await notify(

@@ -1,7 +1,9 @@
 import { dbConnect } from "@/lib/db";
-import { Idea, JoinRequest } from "@/lib/models";
+import { Idea, JoinRequest, Participant } from "@/lib/models";
 import { getSessionParticipant } from "@/lib/session";
 import { notify } from "@/lib/notify";
+import { send } from "@/lib/mail";
+import { demandeRecue } from "@/lib/emails";
 import { handler, json, fail } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -49,13 +51,18 @@ export const POST = handler(async (req, { params }) => {
     throw e;
   }
 
-  // Prévenir tous les membres de l'équipe, avec la note.
-  for (const m of idea.membres) {
+  // Prévenir tous les membres de l'équipe (notification + mail 3), avec la note.
+  const members = await Participant.find({ _id: { $in: idea.membres } }).select("_id email").lean();
+  for (const m of members) {
     await notify(
-      m,
+      m._id,
       "demande",
       `${me.name} souhaite rejoindre « ${idea.title} »${note ? ` : « ${note} »` : "."}`
     );
+    await send({
+      to: m.email,
+      ...demandeRecue({ title: idea.title, askerName: me.name, askerLab: me.lab, note }),
+    });
   }
 
   return json({ request }, 201);

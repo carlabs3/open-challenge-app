@@ -2,6 +2,8 @@ import { dbConnect } from "@/lib/db";
 import { Participant, Notification, LABS, DISCIPLINES, nameKey } from "@/lib/models";
 import { hashPassword } from "@/lib/passwords";
 import { setSessionCookie } from "@/lib/session";
+import { send } from "@/lib/mail";
+import { inscription } from "@/lib/emails";
 import { handler, json, fail } from "@/lib/http";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -57,6 +59,9 @@ export const POST = handler(async (req) => {
       );
     }
   }
+
+  // Mail 1 — confirmation d'inscription. Un échec d'envoi ne bloque pas l'inscription.
+  await send({ to: me.email, ...inscription({ name }) });
 
   setSessionCookie(me._id);
   return json({ me: me.toMe(), ...(homonymWarning ? { homonymWarning } : {}) }, 201);

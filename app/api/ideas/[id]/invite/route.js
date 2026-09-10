@@ -1,7 +1,9 @@
 import { dbConnect } from "@/lib/db";
-import { Idea, Participant, JoinRequest } from "@/lib/models";
+import { Idea, Participant, JoinRequest, Challenge } from "@/lib/models";
 import { getSessionParticipant } from "@/lib/session";
 import { notify } from "@/lib/notify";
+import { send } from "@/lib/mail";
+import { invitation as invitationEmail } from "@/lib/emails";
 import { handler, json, fail } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +54,11 @@ export const POST = handler(async (req, { params }) => {
     "invitation",
     `${me.name} vous invite à rejoindre l'équipe « ${idea.title} ».`
   );
+  const chall = await Challenge.findById(idea.challenge).select("ref").lean();
+  await send({
+    to: target.email,
+    ...invitationEmail({ name: target.name, inviterName: me.name, title: idea.title, ref: chall?.ref ?? "" }),
+  }); // mail 5
 
   return json({ invitation }, 201);
 });

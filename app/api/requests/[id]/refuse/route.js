@@ -1,7 +1,9 @@
 import { dbConnect } from "@/lib/db";
-import { Idea, JoinRequest } from "@/lib/models";
+import { Idea, JoinRequest, Participant } from "@/lib/models";
 import { getSessionParticipant } from "@/lib/session";
 import { notify } from "@/lib/notify";
+import { send } from "@/lib/mail";
+import { demandeRefusee } from "@/lib/emails";
 import { handler, json, fail } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +37,8 @@ export const POST = handler(async (_req, { params }) => {
     "demande",
     `Votre demande pour « ${idea.title} » n'a pas été retenue. D'autres équipes cherchent encore des profils.`
   );
+  const asker = await Participant.findById(request.from).select("name email").lean();
+  if (asker) await send({ to: asker.email, ...demandeRefusee({ name: asker.name, title: idea.title }) }); // mail 4b
 
   return json({ ok: true });
 });
