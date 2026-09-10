@@ -3,6 +3,9 @@ import { Challenge, Idea } from "@/lib/models";
 import { isOpen } from "@/lib/ideas";
 import { handler, json } from "@/lib/http";
 
+// Données vives + session par cookie : jamais de prérendu statique au build.
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/challenges — public.
  * Les sept défis avec leurs compteurs agrégés, triés par `ideaCount` ASCENDANT

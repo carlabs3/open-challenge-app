@@ -4,6 +4,9 @@ import { isOpen } from "@/lib/ideas";
 import { getSessionParticipant } from "@/lib/session";
 import { handler, json, fail } from "@/lib/http";
 
+// Données vives + session par cookie : jamais de prérendu statique au build.
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/challenges/:ref — public.
  * Le défi et ses idées, déjà séparées en `open` / `closed`.

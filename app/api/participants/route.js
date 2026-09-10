@@ -2,6 +2,9 @@ import { dbConnect } from "@/lib/db";
 import { Participant, Idea, Challenge } from "@/lib/models";
 import { handler, json } from "@/lib/http";
 
+// Données vives + session par cookie : jamais de prérendu statique au build.
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/participants — public.
  * Uniquement `visible: true`. JAMAIS l'adresse mail.
