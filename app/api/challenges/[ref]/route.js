@@ -61,8 +61,30 @@ export const GET = handler(async (_req, { params }) => {
     }
   }
 
+  // Idées sur lesquelles j'ai déjà une demande en attente (pour désactiver le bouton).
+  const requestedByMe = new Set();
+  if (meId) {
+    const mine = await JoinRequest.find({
+      from: me._id,
+      status: "en_attente",
+      direction: "demande",
+      idea: { $in: visible.map((i) => i._id) },
+    })
+      .select("idea")
+      .lean();
+    mine.forEach((r) => requestedByMe.add(String(r.idea)));
+  }
+
   const labsOf = (i) => [...new Set(i.membres.map((m) => person.get(String(m))?.lab).filter(Boolean))];
   const coordName = (i) => person.get(String(i.coord))?.name ?? null;
+  // Drapeaux calculés côté serveur (il connaît la session) : le client n'a pas
+  // besoin des ids pour décider quels boutons afficher.
+  const flags = (i) => ({
+    mine: isMine(i),
+    isCoord: !!meId && String(i.coord) === meId,
+    requested: requestedByMe.has(String(i._id)),
+    confirmed: i.confirmed,
+  });
 
   const openItem = (i) => {
     const member = isMine(i);
@@ -75,14 +97,16 @@ export const GET = handler(async (_req, { params }) => {
       membresCount: i.membres.length,
       labs: labsOf(i),
       coordName: coordName(i),
-      ...(member ? { pendingCount: pendingByIdea.get(String(i._id)) || 0 } : {}),
+      ...flags(i),
+      // `full` uniquement pour un membre (édition de sa propre idée).
+      ...(member ? { pendingCount: pendingByIdea.get(String(i._id)) || 0, full: i.full } : {}),
     };
   };
 
   const closedItem = (i) => {
     // Non-membre : titre seul (+ compteur et statut). Jamais angle, full ni membres.
     if (!isMine(i)) {
-      return { id: i._id, title: i.title, membresCount: i.membres.length, status: i.status };
+      return { id: i._id, title: i.title, membresCount: i.membres.length, status: i.status, ...flags(i) };
     }
     // Membre : la fiche complète.
     return {
@@ -100,6 +124,7 @@ export const GET = handler(async (_req, { params }) => {
         const p = person.get(String(m));
         return { id: m, name: p?.name ?? null, lab: p?.lab ?? null };
       }),
+      ...flags(i),
       pendingCount: pendingByIdea.get(String(i._id)) || 0,
     };
   };
