@@ -1,5 +1,6 @@
 import "./globals.css";
 import Header from "./components/Header";
+import DemoBanner from "./components/DemoBanner";
 import { AuthProvider } from "./components/AuthProvider";
 
 export const metadata = {
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
+        <DemoBanner />
         <AuthProvider>
           <Header />
           <main>{children}</main>
