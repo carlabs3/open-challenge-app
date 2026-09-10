@@ -1,22 +1,22 @@
 // TODO à valider par HAROPA — textes des défis repris tels quels de la maquette
 // (open-challenge-ulhn-haropa.html). Ne pas réécrire.
 //
-// ⚠️ DONNÉES DE TEST / FICTIVES ⚠️
-// Les participants, idées et demandes ci-dessous sont ceux de la maquette
-// (personnes inventées, mots de passe tous « challenge2026 »). Ils servent à
-// tester le parcours complet en local et en préproduction. IL FAUT VIDER CES
-// DONNÉES avant d'ouvrir le challenge au public réel :  npm run seed:reset
-// videra puis resèmera ; pour tout effacer sans resemer, faites-le depuis Atlas.
+// Trois commandes, toutes idempotentes :
+//   npm run seed:challenges   → seulement les 7 défis (à garder sur le site)
+//   npm run seed:demo         → 12 participants + 8 idées + 1 demande, FICTIFS
+//   npm run seed:clear        → vide participants, idées, demandes, notifications
+//                               (PAS les défis). DESTRUCTIF : demande de retaper
+//                               le nom de la base pour confirmer.
 //
-// Lancer :
-//   npm run seed          (idempotent : deux fois ne duplique rien)
-//   npm run seed:reset     (vide les collections puis resème)
+// ⚠️ Les participants/idées/demandes sont FICTIFS (mots de passe « challenge2026 »).
+// À vider avec seed:clear avant d'ouvrir le challenge au public réel.
 //
 // Mapping maquette -> modèle Mongoose :
 //   challenge.id  -> ref       ("HP-01")   |  challenge.ref -> referent
 //   participant/idée : les ids texte "p1"/"i1" sont remplacés par des ObjectId ;
 //   coord, membres, ideaId et demandes sont résolus par e-mail / position.
 
+import readline from "node:readline";
 import { config } from "dotenv";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
@@ -24,7 +24,7 @@ import { Challenge, Participant, Idea, JoinRequest, Notification } from "../lib/
 
 config({ path: ".env.local" });
 
-const RESET = process.argv.includes("--reset");
+const MODE = process.argv[2]; // "challenges" | "demo" | "clear"
 
 /* ---------------- données reprises VERBATIM de la maquette ---------------- */
 
@@ -72,28 +72,31 @@ const requests = [
 
 /* ---------------- exécution ---------------- */
 
-async function run() {
+async function connect() {
   if (!process.env.MONGODB_URI) {
     console.error("MONGODB_URI manque. Renseignez .env.local (voir .env.local.example).");
     process.exit(1);
   }
   await mongoose.connect(process.env.MONGODB_URI);
+}
 
-  if (RESET) {
-    await Promise.all([
-      Challenge.deleteMany({}),
-      Participant.deleteMany({}),
-      Idea.deleteMany({}),
-      JoinRequest.deleteMany({}),
-      Notification.deleteMany({}),
-    ]);
-    console.log("Collections vidées (--reset).");
-  }
+/** Une ligne lue sur stdin (fonctionne en interactif ET en pipe : echo nom | ...). */
+function ask(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((res) => rl.question(question, (a) => { rl.close(); res(a); }));
+}
 
-  // 1. Défis — upsert par ref.
+/** seed:challenges — upsert des 7 défis. Renvoie la map ref -> _id. */
+async function seedChallenges() {
   for (const c of challenges) await Challenge.updateOne({ ref: c.ref }, { $set: c }, { upsert: true });
-  const challByRef = new Map((await Challenge.find().lean()).map((c) => [c.ref, c._id]));
   console.log(`  ✓ ${challenges.length} défis`);
+  return new Map((await Challenge.find().lean()).map((c) => [c.ref, c._id]));
+}
+
+/** seed:demo — participants + idées + demande FICTIFS. Les défis sont requis :
+    on les upsert d'abord pour que la commande soit autonome et idempotente. */
+async function seedDemo() {
+  const challByRef = await seedChallenges();
 
   // 2. Participants — upsert par e-mail (sans ideaId à ce stade). Mot de passe bcrypt.
   const passwordHash = await bcrypt.hash("challenge2026", 12);
@@ -155,8 +158,32 @@ async function run() {
     demandes: await JoinRequest.countDocuments(),
   };
   console.log("\nEn base :", counts);
-  console.log("⚠️  Données de test — à vider avant l'ouverture publique (npm run seed:reset).");
-  await mongoose.disconnect();
+  console.log("⚠️  Données FICTIVES — à vider avant l'ouverture publique (npm run seed:clear).");
+}
+
+/** seed:clear — DESTRUCTIF. Vide participants, idées, demandes et notifications
+    (JAMAIS les défis). Demande de retaper le nom de la base pour confirmer. */
+async function clearDemo() {
+  const dbName = mongoose.connection.name;
+  console.log(`\n⚠️  Commande DESTRUCTIVE sur la base « ${dbName} ».`);
+  console.log("   Elle SUPPRIME participants, idées, demandes et notifications.");
+  console.log("   Les défis sont CONSERVÉS.\n");
+  const answer = (await ask(`   Retapez le nom exact de la base pour confirmer (${dbName}) : `)).trim();
+  if (answer !== dbName) {
+    console.log("\nNom incorrect. Annulé — rien n'a été supprimé.");
+    return;
+  }
+  const [p, i, d, n] = await Promise.all([
+    Participant.deleteMany({}),
+    Idea.deleteMany({}),
+    JoinRequest.deleteMany({}),
+    Notification.deleteMany({}),
+  ]);
+  console.log(
+    `\nSupprimés — participants: ${p.deletedCount}, idées: ${i.deletedCount}, ` +
+      `demandes: ${d.deletedCount}, notifications: ${n.deletedCount}.`
+  );
+  console.log(`Défis conservés : ${await Challenge.countDocuments()}.`);
 }
 
 /** Vérifie la cohérence avant de laisser des données en base. Échoue clairement. */
@@ -193,7 +220,19 @@ async function validateInvariant() {
   console.log("  ✓ invariant « une personne = une équipe » vérifié");
 }
 
-run().catch((e) => {
+async function main() {
+  await connect();
+  if (MODE === "challenges") await seedChallenges();
+  else if (MODE === "demo") await seedDemo();
+  else if (MODE === "clear") await clearDemo();
+  else {
+    console.error("Mode inconnu. Utilisez : challenges | demo | clear");
+    process.exitCode = 1;
+  }
+  await mongoose.disconnect();
+}
+
+main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
