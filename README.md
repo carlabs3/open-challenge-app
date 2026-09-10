@@ -45,14 +45,22 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 Las variables de correo (`RESEND_API_KEY`, `MAIL_FROM`…) se añaden en el paso 6.
 
-## Sembrar los desafíos
+## Sembrar los datos de prueba
 
 ```bash
-npm run seed
+npm run seed          # idempotente: dos veces no duplica nada
+npm run seed:reset    # vacía las colecciones y vuelve a sembrar
 ```
 
-Inserta (idempotente) los siete desafíos `HP-01`…`HP-07` a partir de los textos
-de la maqueta. Relanzarlo actualiza sin duplicar.
+Inserta los siete desafíos `HP-01`…`HP-07`, los **12 participantes**, las **8
+ideas** y la solicitud pendiente de la maqueta. Al final valida el invariante
+«una persona = un equipo = un desafío» y falla si algo no cuadra.
+
+> ⚠️ **Todos los participantes, ideas y solicitudes son ficticios y de prueba**
+> (personas inventadas, contraseña única `challenge2026`). Sirven para testear el
+> recorrido completo. **Hay que vaciarlos antes de abrir el challenge al público
+> real** (`npm run seed:reset`, o borrar las colecciones desde Atlas). Cuenta de
+> prueba para entrar: `camille.renaud@univ-lehavre.fr` / `challenge2026`.
 
 ## Probar la autenticación
 

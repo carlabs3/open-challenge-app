@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "seed": "node scripts/seed-challenges.js"
+    "seed": "node scripts/seed-challenges.js",
+    "seed:reset": "node scripts/seed-challenges.js --reset"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
