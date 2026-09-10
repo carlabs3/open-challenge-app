@@ -81,6 +81,8 @@ export default function ParticipantsPage() {
                     <div className="tags">
                       {p.challengeRef ? (
                         <span className="pill b">participe au défi {p.challengeRef}</span>
+                      ) : p.chercheEquipe === "idee" ? (
+                        <span className="pill g">a une idée</span>
                       ) : (
                         <span className="pill g">cherche une équipe</span>
                       )}

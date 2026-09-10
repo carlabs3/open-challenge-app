@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { auth, acceptRequest, refuseRequest } from "@/lib/api";
 import { DISC } from "@/lib/constants";
 import { useAuth } from "../components/AuthProvider";
+import ProfileEditor from "../components/ProfileEditor";
 
 /**
  * Mon espace — port de la vue #v-espace (maquette:727) et de renderEspace
@@ -97,6 +98,7 @@ export default function MonEspacePage() {
                 {me.visible ? "visible dans la liste" : "non visible"}
               </span>
             </div>
+            <ProfileEditor me={me} refresh={refresh} />
           </div>
 
           <div className="block-head" style={{ marginTop: "44px" }}>
@@ -190,6 +192,14 @@ export default function MonEspacePage() {
               Se déconnecter
             </button>
           </div>
+
+          {/* Droit à l'effacement : pour l'instant un mailto (supprimer un compte
+              qui coordonne une équipe a des conséquences — pas encore automatisé). */}
+          <p className="small mut" style={{ marginTop: "30px" }}>
+            <a href="mailto:open-challenge@univ-lehavre.fr?subject=Open%20Challenge%20%E2%80%94%20suppression%20de%20mon%20compte">
+              Supprimer mon compte
+            </a>
+          </p>
         </div>
       </section>
     </div>

@@ -1,5 +1,5 @@
 import { getSessionParticipant } from "@/lib/session";
-import { Idea, JoinRequest, Notification, Participant, Challenge } from "@/lib/models";
+import { Idea, JoinRequest, Notification, Participant, Challenge, LABS, DISCIPLINES } from "@/lib/models";
 import { handler, json, fail } from "@/lib/http";
 
 // Données vives + session par cookie : jamais de prérendu statique au build.
@@ -74,4 +74,56 @@ export const GET = handler(async () => {
     requests: { incoming, outgoing },
     notifications,
   });
+});
+
+// LinkedIn : vide, ou une URL http(s) plausible.
+const validLi = (s) => s === "" || /^https?:\/\/\S+\.\S+/.test(s);
+
+/**
+ * PATCH /api/me — rectifier ses propres données (RGPD). Requiert une session.
+ * SEULS ces champs sont pris en compte ; tout autre champ du corps (email, role,
+ * ideaId, passwordHash…) est IGNORÉ. Mêmes validations que l'inscription.
+ * `chercheEquipe` n'est modifiable que si la personne n'a pas d'équipe.
+ */
+export const PATCH = handler(async (req) => {
+  const me = await getSessionParticipant();
+  if (!me) return fail("Votre session a expiré. Reconnectez-vous.", 401);
+
+  const body = await req.json().catch(() => ({}));
+
+  if (body.name !== undefined) {
+    const name = String(body.name).trim();
+    if (name.split(" ").filter(Boolean).length < 2) return fail("Indiquez votre nom et votre prénom.");
+    me.name = name;
+  }
+  if (body.lab !== undefined) {
+    if (!LABS.includes(body.lab)) return fail("Choisissez votre laboratoire.");
+    me.lab = body.lab;
+  }
+  if (body.disc !== undefined) {
+    const disc = Array.isArray(body.disc) ? body.disc : [];
+    if (!disc.length || !disc.every((d) => DISCIPLINES.includes(d))) return fail("Cochez au moins une discipline.");
+    me.disc = disc;
+  }
+  if (body.bio !== undefined) {
+    const bio = String(body.bio);
+    // TODO à valider — message nouveau (bio trop longue).
+    if (bio.length > 220) return fail("La bio ne peut pas dépasser 220 caractères.");
+    me.bio = bio.trim();
+  }
+  if (body.li !== undefined) {
+    const li = String(body.li).trim();
+    // TODO à valider — message nouveau (lien LinkedIn invalide).
+    if (!validLi(li)) return fail("Ce lien n'est pas une adresse valide.");
+    me.li = li;
+  }
+  if (body.visible !== undefined) me.visible = body.visible === true;
+  // chercheEquipe : ignoré si la personne a déjà une équipe (statut alors dérivé).
+  if (body.chercheEquipe !== undefined && !me.ideaId) {
+    if (!["cherche", "idee"].includes(body.chercheEquipe)) return fail("Statut invalide.");
+    me.chercheEquipe = body.chercheEquipe;
+  }
+
+  await me.save();
+  return json({ me: me.toMe() });
 });

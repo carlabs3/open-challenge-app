@@ -14,7 +14,7 @@ export const GET = handler(async () => {
   await dbConnect();
 
   const people = await Participant.find({ visible: true })
-    .select("name lab disc bio li ideaId")
+    .select("name lab disc bio li ideaId chercheEquipe")
     .lean();
 
   // ideaId -> challenge._id -> challenge.ref, en deux requêtes groupées.
@@ -38,6 +38,8 @@ export const GET = handler(async () => {
     bio: p.bio,
     li: p.li,
     challengeRef: p.ideaId ? refOfIdea.get(String(p.ideaId)) ?? null : null,
+    // Statut auto-déclaré, pertinent seulement sans équipe (sinon on affiche le défi).
+    chercheEquipe: p.ideaId ? null : p.chercheEquipe || "cherche",
   }));
 
   return json(rows);

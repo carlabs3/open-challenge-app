@@ -156,6 +156,28 @@ elige desde el enlace, nunca desde el formulario de la web.
 Requiere token. Devuelve `{ me, idea, requests: { incoming[], outgoing[] }, notifications[] }`.
 Es lo que necesita « Mon espace » de una sola vez.
 
+### `PATCH /api/me`
+Requiere sesión. Rectificación RGPD de los datos propios. **Solo** estos campos;
+cualquier otro (`email`, `role`, `ideaId`, `passwordHash`…) se ignora en el
+servidor:
+```
+{ name?, lab?, disc?, bio?, li?, visible?, chercheEquipe? }
+→ 200 { me }
+```
+Mismas validaciones que el registro (nom+prénom, al menos 1 disciplina, bio ≤ 220,
+`li` vacío o URL http(s)). `chercheEquipe` (`"cherche"` | `"idee"`) solo se aplica
+si la persona **no** tiene equipo; con equipo el estado « a déjà une équipe » se
+deriva de `ideaId`. El email no se edita aquí (identidad de la cuenta).
+
+### `POST /api/me/password`
+Requiere sesión **y** la contraseña actual.
+```
+{ currentPassword, newPassword }
+→ 200 { ok: true }        // + mail d'avertissement à l'adresse du compte
+→ 401 { error: "Mot de passe actuel incorrect." }
+→ 400 { error: "Huit caractères minimum." }
+```
+
 ## Lectura
 
 ### `GET /api/challenges`
