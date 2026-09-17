@@ -163,6 +163,8 @@ section.tight{padding:66px 0}
 .chip{border:1px solid var(--line);background:transparent;padding:7px 15px;border-radius:999px;font:inherit;font-size:0.86rem;color:var(--ink-55);cursor:pointer}
 .chip:hover{border-color:var(--ink);color:var(--ink)}
 .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.chip:disabled{opacity:.4;cursor:not-allowed}
+.chip:disabled:hover{border-color:var(--line);color:var(--ink-55)}
 
 /* ---------- challenge detail ---------- */
 .d-hero{background:var(--ink);color:var(--on-dark);position:relative;overflow:hidden}

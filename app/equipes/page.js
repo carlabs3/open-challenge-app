@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getIdeas } from "@/lib/api";
+import { getIdeas, getChallenges } from "@/lib/api";
 import { DISC, THEMES } from "@/lib/constants";
 import { useAuth } from "../components/AuthProvider";
 import IdeaCard from "../components/IdeaCard";
@@ -21,6 +21,7 @@ export default function EquipesPage() {
   const router = useRouter();
   const { data } = useAuth();
   const [payload, setPayload] = useState(null); // { open, closed } | false (erreur)
+  const [challenges, setChallenges] = useState([]); // les 7 défis, pour l'ordre des pastilles
   const [defi, setDefi] = useState("all");
   const [theme, setTheme] = useState("all");
   const [profil, setProfil] = useState("all");
@@ -30,6 +31,11 @@ export default function EquipesPage() {
     getIdeas()
       .then(setPayload)
       .catch(() => setPayload(false));
+    // Liste des défis : sert à afficher TOUTES les pastilles de défi, dans l'ordre
+    // des ref (HP-01 → HP-07), y compris les défis sans aucune idée.
+    getChallenges()
+      .then(setChallenges)
+      .catch(() => setChallenges([]));
   }, []);
 
   const myIdea = data?.idea ?? null;
@@ -56,16 +62,15 @@ export default function EquipesPage() {
   const closedAll = payload.closed || [];
   const everything = [...openAll, ...closedAll];
 
-  // Options de filtre dérivées des cartes présentes (dans l'ordre d'apparition,
-  // donc l'ordre des défis renvoyé par le serveur).
-  const defiOptions = [];
-  const seenDefi = new Set();
-  for (const i of everything) {
-    if (i.challengeRef && !seenDefi.has(i.challengeRef)) {
-      seenDefi.add(i.challengeRef);
-      defiOptions.push({ ref: i.challengeRef, title: i.challengeTitle });
-    }
-  }
+  // Pastilles de défi : TOUS les défis, toujours triés par ref croissante
+  // (HP-01 → HP-07), indépendamment de l'ordre des résultats. Un défi sans aucune
+  // idée visible ici est affiché mais désactivé, pour qu'il ne semble pas manquer.
+  const presentRefs = new Set(everything.map((i) => i.challengeRef).filter(Boolean));
+  const refSource = challenges.length ? challenges.map((c) => c.ref) : [...presentRefs];
+  const defiOptions = [...new Set(refSource)]
+    .sort((a, b) => a.localeCompare(b))
+    .map((ref) => ({ ref, present: presentRefs.has(ref) }));
+
   const themeOptions = [];
   const seenTheme = new Set();
   for (const i of everything) {
@@ -113,9 +118,16 @@ export default function EquipesPage() {
               Tous
             </Chip>
             {defiOptions.map((d) => (
-              <Chip key={d.ref} active={defi === d.ref} onClick={() => setDefi(d.ref)}>
+              <button
+                type="button"
+                key={d.ref}
+                className="chip"
+                aria-pressed={defi === d.ref}
+                disabled={!d.present}
+                onClick={() => setDefi(d.ref)}
+              >
                 {d.ref}
-              </Chip>
+              </button>
             ))}
           </div>
 
