@@ -255,6 +255,10 @@ footer.site .wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:44px;align-it
 footer.site h2{max-width:20ch;margin-bottom:22px}
 footer.site .meta{font-size:0.86rem;color:var(--on-dark-55);display:grid;gap:8px}
 footer.site a{color:var(--green)}
+/* Le bouton « Contactez-nous » est un .btn-g (fond vert, texte foncé) : sans cette
+   règle, `footer.site a` (plus spécifique) forçait un texte vert sur fond vert,
+   illisible tant qu'on ne survolait pas. On rend au bouton son texte foncé au repos. */
+footer.site a.btn-g{color:var(--ink)}
 
 .view{display:none}
 .view.on{display:block}

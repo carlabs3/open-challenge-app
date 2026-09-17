@@ -64,7 +64,23 @@ export default function Header() {
     <>
       <header className="top">
         <div className="wrap">
-          <div className="brand">
+          {/* Le wordmark ramène à l'accueil (attendu d'un logo d'en-tête). On garde un
+              <div> pour ne pas hériter des couleurs d'un <button> qui rendraient le
+              texte illisible sur le fond sombre. */}
+          <div
+            className="brand"
+            role="link"
+            tabIndex={0}
+            aria-label="Open Challenge — accueil"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                router.push("/");
+              }
+            }}
+          >
             {/* Pas de logo ici : sur le fond sombre (Midnight Violet), un wordmark
                 noir serait invisible. Les logos partenaires vivent dans la
                 section « Organisé par » de l'accueil (fond clair). */}
