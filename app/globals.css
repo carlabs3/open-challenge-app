@@ -166,6 +166,15 @@ section.tight{padding:66px 0}
 .chip:disabled{opacity:.4;cursor:not-allowed}
 .chip:disabled:hover{border-color:var(--line);color:var(--ink-55)}
 
+/* Page « Les équipes » : filtres en colonne latérale gauche (fixe ~240px) + liste
+   fluide à droite. La colonne suit le défilement, sous l'en-tête sticky (.top).
+   Passe en une seule colonne (filtres au-dessus) sous 900px — voir plus bas. */
+.eq-layout{display:grid;grid-template-columns:240px 1fr;gap:40px;align-items:start}
+.eq-side{position:sticky;top:92px}
+.eq-side .filters{margin-bottom:18px}
+.eq-side .link{margin-top:6px}
+.eq-list .block-head:first-child{margin-top:0}
+
 /* ---------- challenge detail ---------- */
 .d-hero{background:var(--ink);color:var(--on-dark);position:relative;overflow:hidden}
 .d-hero .m{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.42}
@@ -269,6 +278,9 @@ footer.site a.btn-g{color:var(--ink)}
 @media (max-width:900px){
   .split,.sec-head{grid-template-columns:1fr}
   .steps,.tl,.prizes,.stats{grid-template-columns:1fr}
+  /* « Les équipes » : filtres empilés au-dessus de la liste, sans repli ni bouton. */
+  .eq-layout{grid-template-columns:1fr}
+  .eq-side{position:static}
   footer.site .wrap{grid-template-columns:1fr}
   .anr{grid-template-columns:1fr}
   .top .wrap{align-items:flex-start}

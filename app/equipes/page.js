@@ -92,6 +92,14 @@ export default function EquipesPage() {
   const opens = showOpen ? openAll.filter((i) => matchDefi(i) && matchTheme(i) && matchProfil(i)) : [];
   const closeds = showClosed ? closedAll.filter((i) => matchDefi(i) && matchTheme(i)) : [];
 
+  const anyActive = defi !== "all" || theme !== "all" || profil !== "all" || statut !== "all";
+  const resetAll = () => {
+    setDefi("all");
+    setTheme("all");
+    setProfil("all");
+    setStatut("all");
+  };
+
   const Chip = ({ active, onClick, children }) => (
     <button type="button" className="chip" aria-pressed={active} onClick={onClick}>
       {children}
@@ -110,121 +118,137 @@ export default function EquipesPage() {
             leurs candidatures. Filtrez par défi, par thème ou par profil recherché.
           </p>
 
-          <div className="filters">
-            <span className="small mut" style={{ marginRight: "4px" }}>
-              Défi
-            </span>
-            <Chip active={defi === "all"} onClick={() => setDefi("all")}>
-              Tous
-            </Chip>
-            {defiOptions.map((d) => (
-              <button
-                type="button"
-                key={d.ref}
-                className="chip"
-                aria-pressed={defi === d.ref}
-                disabled={!d.present}
-                onClick={() => setDefi(d.ref)}
-              >
-                {d.ref}
-              </button>
-            ))}
-          </div>
-
-          <div className="filters">
-            <span className="small mut" style={{ marginRight: "4px" }}>
-              Thème
-            </span>
-            <Chip active={theme === "all"} onClick={() => setTheme("all")}>
-              Tous
-            </Chip>
-            {themeOptions.map((t) => (
-              <Chip key={t} active={theme === t} onClick={() => setTheme(t)}>
-                {THEMES[t] || t}
-              </Chip>
-            ))}
-          </div>
-
-          <div className="filters">
-            <span className="small mut" style={{ marginRight: "4px" }}>
-              Profil recherché
-            </span>
-            <Chip active={profil === "all"} onClick={() => setProfil("all")}>
-              Tous
-            </Chip>
-            {Object.keys(DISC).map((k) => (
-              <Chip key={k} active={profil === k} onClick={() => setProfil(k)}>
-                {DISC[k]}
-              </Chip>
-            ))}
-          </div>
-
-          <div className="filters">
-            <span className="small mut" style={{ marginRight: "4px" }}>
-              Statut
-            </span>
-            <Chip active={statut === "all"} onClick={() => setStatut("all")}>
-              Toutes
-            </Chip>
-            <Chip active={statut === "ouvertes"} onClick={() => setStatut("ouvertes")}>
-              Ouvertes
-            </Chip>
-            <Chip active={statut === "constituees"} onClick={() => setStatut("constituees")}>
-              Constituées
-            </Chip>
-          </div>
-
-          {showOpen && (
-            <>
-              <div className="block-head">
-                <h3>{opens.length ? `Équipes ouvertes (${opens.length})` : "Aucune équipe ouverte"}</h3>
-                <p>Ces équipes cherchent encore des membres.</p>
+          {/* Filtres en colonne latérale gauche (sticky), liste à droite. La logique
+              de filtrage ne change pas : seule la disposition. Sous 900px, la colonne
+              repasse au-dessus de la liste (voir globals.css), sans repli ni bouton. */}
+          <div className="eq-layout">
+            <aside className="eq-side" aria-label="Filtres">
+              <div className="filters">
+                <span className="small mut" style={{ marginRight: "4px" }}>
+                  Défi
+                </span>
+                <Chip active={defi === "all"} onClick={() => setDefi("all")}>
+                  Tous
+                </Chip>
+                {defiOptions.map((d) => (
+                  <button
+                    type="button"
+                    key={d.ref}
+                    className="chip"
+                    aria-pressed={defi === d.ref}
+                    disabled={!d.present}
+                    onClick={() => setDefi(d.ref)}
+                  >
+                    {d.ref}
+                  </button>
+                ))}
               </div>
-              <div className="ideas">
-                {!opens.length ? (
-                  <div className="empty">Aucune équipe ouverte ne correspond à ces filtres.</div>
-                ) : (
-                  opens.map((i) => (
-                    <IdeaCard
-                      key={String(i.id)}
-                      idea={i}
-                      open
-                      myIdea={myIdea}
-                      onEdit={(idea) => goToDefi(idea, { edit: true })}
-                      onJoin={(idea) => goToDefi(idea)}
-                      onClose={(idea) => goToDefi(idea)}
-                    />
-                  ))
-                )}
-              </div>
-            </>
-          )}
 
-          {showClosed && (
-            <>
-              <div className="block-head">
-                <h3>{closeds.length ? `Équipes constituées (${closeds.length})` : "Aucune équipe constituée"}</h3>
-                <p>Candidatures closes. Seul le titre est public.</p>
+              <div className="filters">
+                <span className="small mut" style={{ marginRight: "4px" }}>
+                  Thème
+                </span>
+                <Chip active={theme === "all"} onClick={() => setTheme("all")}>
+                  Tous
+                </Chip>
+                {themeOptions.map((t) => (
+                  <Chip key={t} active={theme === t} onClick={() => setTheme(t)}>
+                    {THEMES[t] || t}
+                  </Chip>
+                ))}
               </div>
-              <div className="ideas">
-                {!closeds.length ? (
-                  <div className="empty">Aucune équipe constituée ne correspond à ces filtres.</div>
-                ) : (
-                  closeds.map((i) => (
-                    <IdeaCard
-                      key={String(i.id)}
-                      idea={i}
-                      open={false}
-                      myIdea={myIdea}
-                      onEdit={(idea) => goToDefi(idea, { edit: true })}
-                      onJoin={(idea) => goToDefi(idea)}
-                      onClose={(idea) => goToDefi(idea)}
-                    />
-                  ))
-                )}
+
+              <div className="filters">
+                <span className="small mut" style={{ marginRight: "4px" }}>
+                  Profil recherché
+                </span>
+                <Chip active={profil === "all"} onClick={() => setProfil("all")}>
+                  Tous
+                </Chip>
+                {Object.keys(DISC).map((k) => (
+                  <Chip key={k} active={profil === k} onClick={() => setProfil(k)}>
+                    {DISC[k]}
+                  </Chip>
+                ))}
               </div>
-            </>
-          )}
+
+              <div className="filters">
+                <span className="small mut" style={{ marginRight: "4px" }}>
+                  Statut
+                </span>
+                <Chip active={statut === "all"} onClick={() => setStatut("all")}>
+                  Toutes
+                </Chip>
+                <Chip active={statut === "ouvertes"} onClick={() => setStatut("ouvertes")}>
+                  Ouvertes
+                </Chip>
+                <Chip active={statut === "constituees"} onClick={() => setStatut("constituees")}>
+                  Constituées
+                </Chip>
+              </div>
+
+              {anyActive && (
+                // TODO à valider — lien de réinitialisation des filtres.
+                <button type="button" className="link" onClick={resetAll}>
+                  Tout réinitialiser
+                </button>
+              )}
+            </aside>
+
+            <div className="eq-list">
+              {showOpen && (
+                <>
+                  <div className="block-head">
+                    <h3>{opens.length ? `Équipes ouvertes (${opens.length})` : "Aucune équipe ouverte"}</h3>
+                    <p>Ces équipes cherchent encore des membres.</p>
+                  </div>
+                  <div className="ideas">
+                    {!opens.length ? (
+                      <div className="empty">Aucune équipe ouverte ne correspond à ces filtres.</div>
+                    ) : (
+                      opens.map((i) => (
+                        <IdeaCard
+                          key={String(i.id)}
+                          idea={i}
+                          open
+                          myIdea={myIdea}
+                          onEdit={(idea) => goToDefi(idea, { edit: true })}
+                          onJoin={(idea) => goToDefi(idea)}
+                          onClose={(idea) => goToDefi(idea)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+
+              {showClosed && (
+                <>
+                  <div className="block-head">
+                    <h3>{closeds.length ? `Équipes constituées (${closeds.length})` : "Aucune équipe constituée"}</h3>
+                    <p>Candidatures closes. Seul le titre est public.</p>
+                  </div>
+                  <div className="ideas">
+                    {!closeds.length ? (
+                      <div className="empty">Aucune équipe constituée ne correspond à ces filtres.</div>
+                    ) : (
+                      closeds.map((i) => (
+                        <IdeaCard
+                          key={String(i.id)}
+                          idea={i}
+                          open={false}
+                          myIdea={myIdea}
+                          onEdit={(idea) => goToDefi(idea, { edit: true })}
+                          onJoin={(idea) => goToDefi(idea)}
+                          onClose={(idea) => goToDefi(idea)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </section>
     </div>
