@@ -250,9 +250,12 @@ Cada tarjeta añade `challengeRef`, `challengeTitle` y `challengeTheme` (en la
 página de un solo desafío esos campos NO se envían: el desafío es implícito).
 
 Orden: los desafíos van en el mismo orden que `/defis` (`ideaCount` ascendente,
-`ref` como desempate); dentro de cada desafío, las ideas mantienen el orden de
-inserción. El orden intra-desafío lo fija el helper, así que `/defis/:ref` y
-`/equipes` comparten exactamente el mismo criterio.
+`ref` como desempate); dentro de cada desafío, las ideas **abiertas** se ordenan
+por plazas libres descendente (`5 − membres.length`), con el orden de inserción
+como desempate; las **constituidas** mantienen el orden de inserción. El criterio
+intra-desafío lo fija el helper, así que `/defis/:ref` y `/equipes` comparten
+exactamente el mismo orden. Sin aleatoriedad ni semilla por sesión: el orden es
+estable a propósito.
 
 ### `GET /api/participants`
 Público. Solo `visible: true`. Nunca el correo.
