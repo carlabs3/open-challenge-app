@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth, acceptRequest, refuseRequest } from "@/lib/api";
+import { auth, acceptRequest, refuseRequest, leaveIdea } from "@/lib/api";
 import { DISC } from "@/lib/constants";
 import { useAuth } from "../components/AuthProvider";
 import ProfileEditor from "../components/ProfileEditor";
@@ -22,6 +22,10 @@ export default function MonEspacePage() {
   const { me, data, loading, refresh } = useAuth();
   const [notice, setNotice] = useState("");
   const [warn, setWarn] = useState("");
+  // Quitter l'équipe : panneau de confirmation + successeur choisi (coordinateur).
+  const [leaving, setLeaving] = useState(false);
+  const [successor, setSuccessor] = useState("");
+  const [leaveErr, setLeaveErr] = useState("");
 
   // Redirection si non connecté (une fois l'état chargé).
   useEffect(() => {
@@ -69,6 +73,23 @@ export default function MonEspacePage() {
   function openEditMyIdea() {
     sessionStorage.setItem("open-edit", String(idea.id));
     router.push("/defis/" + idea.challengeRef);
+  }
+
+  // Autres membres (hors moi) : sert au sélecteur de successeur du coordinateur.
+  const otherMembers = (idea?.membresList || []).filter((m) => String(m.id) !== String(me.id));
+
+  async function doLeave() {
+    setLeaveErr("");
+    try {
+      await leaveIdea(idea.id, isCoord ? successor : undefined);
+      setLeaving(false);
+      setSuccessor("");
+      await refresh();
+      // TODO à valider — message après le départ de l'équipe.
+      setNotice("Vous avez quitté l'équipe.");
+    } catch (e) {
+      setLeaveErr(e.message);
+    }
   }
 
   return (
@@ -130,24 +151,103 @@ export default function MonEspacePage() {
                 </div>
               </div>
             ) : (
-              <div className="idea mine">
-                <div className="idea-top">
-                  <h3>{idea.title}</h3>
-                  <span className="pill b">{isCoord ? "vous coordonnez" : "membre"}</span>
-                </div>
-                <p className="angle">{(idea.challengeRef ? idea.challengeRef + " · " : "") + (idea.challengeTitle || "")}</p>
-                <div className="idea-foot">
-                  <span>{(idea.membresNames || []).join(", ")}</span>
-                  <div className="acts">
-                    <button type="button" className="btn btn-s btn-ghost" onClick={() => router.push("/defis/" + idea.challengeRef)}>
-                      Voir le défi
-                    </button>
-                    <button type="button" className="btn btn-s btn-ghost" onClick={openEditMyIdea}>
-                      Modifier l'idée
-                    </button>
+              <>
+                <div className="idea mine">
+                  <div className="idea-top">
+                    <h3>{idea.title}</h3>
+                    <span className="pill b">{isCoord ? "vous coordonnez" : "membre"}</span>
+                  </div>
+                  <p className="angle">{(idea.challengeRef ? idea.challengeRef + " · " : "") + (idea.challengeTitle || "")}</p>
+                  <div className="idea-foot">
+                    <span>{(idea.membresNames || []).join(", ")}</span>
+                    <div className="acts">
+                      <button type="button" className="btn btn-s btn-ghost" onClick={() => router.push("/defis/" + idea.challengeRef)}>
+                        Voir le défi
+                      </button>
+                      <button type="button" className="btn btn-s btn-ghost" onClick={openEditMyIdea}>
+                        Modifier l'idée
+                      </button>
+                      {/* TODO à valider — quitter l'équipe. */}
+                      <button
+                        type="button"
+                        className="btn btn-s btn-ghost"
+                        onClick={() => {
+                          setLeaveErr("");
+                          setSuccessor("");
+                          setLeaving(true);
+                        }}
+                      >
+                        Quitter l'équipe
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {leaving && (
+                  <div className="panel" id="leave-panel">
+                    {!isCoord ? (
+                      <>
+                        {/* TODO à valider — confirmation, membre. */}
+                        <p style={{ maxWidth: "60ch" }}>
+                          Vous allez quitter l'équipe « {idea.title} ». Pour y revenir, il faudra
+                          envoyer une nouvelle demande au coordinateur.
+                        </p>
+                        {leaveErr && <p className="err">{leaveErr}</p>}
+                        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "16px" }}>
+                          <button type="button" className="btn btn-s btn-g" onClick={doLeave}>
+                            Quitter l'équipe
+                          </button>
+                          <button type="button" className="btn btn-s btn-ghost" onClick={() => setLeaving(false)}>
+                            Annuler
+                          </button>
+                        </div>
+                      </>
+                    ) : otherMembers.length === 0 ? (
+                      <>
+                        {/* TODO à valider — coordinateur seul membre. */}
+                        <p style={{ maxWidth: "60ch" }}>
+                          Vous êtes le seul membre de cette équipe : il n'y a personne à qui transmettre
+                          la coordination. Vous pouvez supprimer l'idée.
+                        </p>
+                        <div style={{ marginTop: "16px" }}>
+                          <button type="button" className="btn btn-s btn-ghost" onClick={() => setLeaving(false)}>
+                            Annuler
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* TODO à valider — panneau du coordinateur qui quitte. */}
+                        <h3 style={{ margin: "0 0 12px" }}>Quitter l'équipe et transmettre la coordination</h3>
+                        <p style={{ maxWidth: "60ch" }}>
+                          Vous coordonnez cette équipe. Pour la quitter, désignez la personne qui
+                          reprendra la coordination : elle décidera des demandes en cours.
+                        </p>
+                        <div style={{ marginTop: "16px", maxWidth: "40ch" }}>
+                          <label htmlFor="leave-successor">Nouveau coordinateur</label>
+                          <select id="leave-successor" value={successor} onChange={(e) => setSuccessor(e.target.value)}>
+                            <option value="">Choisir…</option>
+                            {otherMembers.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {leaveErr && <p className="err">{leaveErr}</p>}
+                        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "16px" }}>
+                          <button type="button" className="btn btn-s btn-g" disabled={!successor} onClick={doLeave}>
+                            Transmettre et quitter
+                          </button>
+                          <button type="button" className="btn btn-s btn-ghost" onClick={() => setLeaving(false)}>
+                            Annuler
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

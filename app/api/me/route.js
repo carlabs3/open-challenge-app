@@ -17,10 +17,11 @@ export const GET = handler(async () => {
   // Défi de mon équipe (réf pour les hints, titre pour « Mon espace »).
   const myChallenge = idea ? await Challenge.findById(idea.challenge).select("ref title").lean() : null;
   const myChallengeRef = myChallenge?.ref ?? null;
-  // Noms des coéquipiers (pour la carte d'équipe de « Mon espace »).
-  const membresNames = idea
-    ? (await Participant.find({ _id: { $in: idea.membres } }).select("name").lean()).map((p) => p.name)
-    : [];
+  // Coéquipiers (nom + id) : la liste d'ids/noms sert à l'affichage ET au sélecteur
+  // de successeur quand le coordinateur quitte l'équipe.
+  const membresDocs = idea ? await Participant.find({ _id: { $in: idea.membres } }).select("name").lean() : [];
+  const membresList = membresDocs.map((p) => ({ id: String(p._id), name: p.name }));
+  const membresNames = membresList.map((m) => m.name);
 
   const [incomingRaw, outgoingRaw, invitationsRaw, notifications] = await Promise.all([
     // Demandes reçues sur les idées que je coordonne (uniquement des « demande »).
@@ -110,6 +111,7 @@ export const GET = handler(async () => {
           challengeRef: myChallengeRef,
           challengeTitle: myChallenge?.title ?? null,
           membresNames,
+          membresList,
           pendingInvitations,
           inProgressFrom,
         }

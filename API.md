@@ -181,9 +181,11 @@ Es lo que necesita « Mon espace » de una sola vez. Tres listas **separadas por
   Antes no salían en ninguna lista y eran inaceptables desde la interfaz.
 
 Si tengo equipo, `idea` incluye además `pendingInvitations` (nº de invitaciones
-en espera de mi equipo) e `inProgressFrom` (ids de personas con una demande o
-invitación en curso sobre mi equipo). « Participants » los usa para saber si puede
-invitar y mostrar el motivo cuando no.
+en espera de mi equipo), `inProgressFrom` (ids de personas con una demande o
+invitación en curso sobre mi equipo) y `membresList` (`[{ id, name }]` de los
+coéquipiers, sin correo). « Participants » usa los dos primeros para saber si
+puede invitar; « Mon espace » usa `membresList` para el selector de sucesor al
+transmitir la coordinación (`/leave`).
 
 ### `PATCH /api/me`
 Requiere sesión. Rectificación RGPD de los datos propios. **Solo** estos campos;
@@ -282,6 +284,29 @@ Coordinador o miembro. Campos editables: `title`, `angle`, `full`, `has`, `want`
 Solo el coordinador. Pone `status: "fermee"`. Las solicitudes en espera pasan a
 `annulee` y se avisa a cada solicitante por correo — si no, se quedan esperando
 una respuesta que no llegará nunca.
+
+### `POST /api/ideas/:id/leave`
+Quitter son équipe. Requiere ser miembro.
+```
+{ successorId? }   // requerido solo si soy el coordinador
+→ 200 { ok: true, left: true }
+→ 409 { error: "Vous êtes le seul membre de cette équipe : il n'y a personne à qui transmettre la coordination. Vous pouvez supprimer l'idée." }
+→ 400 { error: "Choisissez un membre de l'équipe pour reprendre la coordination." }
+```
+- **Miembro no coordinador:** sale directamente. `ideaId` a `null`, se retira de
+  `membres`, se recalcula `has` (las disciplinas que solo aportaba él
+  desaparecen). **No** se toca `want`. Aviso + correo al coordinador.
+- **Coordinador:** debe designar un `successorId` (miembro actual, no él mismo)
+  en la misma acción. Orden crítico: `Idea.coord = successor`, **luego** se
+  reasigna el campo `coord` duplicado de **todas** las `JoinRequest` de la idea
+  en `status: "en_attente"` (sin ese paso, el nuevo coordinador no podría decidir
+  las solicitudes heredadas), luego se retira al saliente y se recalcula `has`.
+  El traspaso es inmediato, el sucesor no confirma. Aviso + correo al nuevo
+  coordinador y al resto del equipo.
+- **Coordinador único miembro:** 409, no hay sucesor; se dirige a « Supprimer
+  l'idée ».
+- Una idea `fermee` que quede por debajo del mínimo **no** se reabre: `status`
+  no cambia.
 
 ### `POST /api/ideas/:id/requests`
 ```
