@@ -277,13 +277,34 @@ El servidor pone `coord` y `membres` a partir del token, y actualiza el
 `ideaId` del participante. Comprueba **en el servidor** que no tenga ya equipo.
 
 ### `PATCH /api/ideas/:id`
-Coordinador o miembro. Campos editables: `title`, `angle`, `full`, `has`, `want`.
-`status`, `moderation` y `archived` **no** son editables por aquí.
+**Solo el coordinador** (o la organización). Campos editables: `title`, `angle`,
+`full`, `has`, `want`. `status`, `moderation` y `archived` **no** son editables
+por aquí. Los miembros no coordinadores ya no editan (A.4): `403 { error: "Seul
+le coordinateur de l'équipe peut modifier cette idée." }`.
 
 ### `POST /api/ideas/:id/close`
-Solo el coordinador. Pone `status: "fermee"`. Las solicitudes en espera pasan a
-`annulee` y se avisa a cada solicitante por correo — si no, se quedan esperando
-una respuesta que no llegará nunca.
+Solo el coordinador. Pone `status: "fermee"`. **Mínimo 2 miembros** para finalizar
+(A.2): con menos, `409 { error: "Il faut au moins deux membres pour finaliser
+votre équipe." }` (el botón también sale desactivado con el motivo visible). Las
+solicitudes en espera pasan a `annulee` y se avisa a cada solicitante por correo
+(las invitaciones pendientes, también) — si no, se quedan esperando una respuesta
+que no llegará nunca.
+
+### `POST /api/ideas/:id/delete`
+Supprimer son idée. Solo el coordinador (o la organización).
+```
+→ 200 { ok: true, archived: true }
+→ 403 { error: "Seul le coordinateur de l'idée peut la supprimer." }
+```
+- **Nada se borra:** `archived: true` (regla del proyecto).
+- **ORDEN crítico:** se archiva la idea **primero**, y solo después se liberan los
+  miembros (`ideaId: null`). Al revés, alguien liberado podría unirse a otro
+  equipo mientras la idea sigue viva y quedar en dos sitios.
+- Todas las `JoinRequest` en espera de esa idea pasan a `annulee`.
+- Aviso + correo a todos los miembros y a quien tuviera una solicitud o invitación
+  pendiente (estos últimos, sin duplicar con los miembros).
+- La interfaz exige **doble confirmación**: escribir el título exacto de la idea
+  para habilitar el botón (destructivo para otras personas).
 
 ### `POST /api/ideas/:id/leave`
 Quitter son équipe. Requiere ser miembro.

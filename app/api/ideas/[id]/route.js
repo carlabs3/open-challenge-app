@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const cleanDisc = (arr) => (Array.isArray(arr) ? arr.filter((d) => DISCIPLINES.includes(d)) : []);
 
 /**
- * PATCH /api/ideas/:id — modifier une idée. Coordinateur OU membre.
+ * PATCH /api/ideas/:id — modifier une idée. Coordinateur seul (ou organisation).
  * Champs éditables : title, angle, full, has, want.
  * status / moderation / archived ne sont PAS modifiables ici (voir API.md).
  */
@@ -22,8 +22,11 @@ export const PATCH = handler(async (req, { params }) => {
   if (!idea) return fail("Cette idée n'existe plus.", 404);
 
   const meId = String(me._id);
-  const isMember = String(idea.coord) === meId || idea.membres.some((m) => String(m) === meId);
-  if (!isMember) return fail("Seuls les membres de l'équipe peuvent modifier cette idée.", 403);
+  const staff = ["organisateur", "admin"].includes(me.role);
+  // A.4 — seul le coordinateur modifie l'idée (les membres n'éditent plus).
+  if (String(idea.coord) !== meId && !staff) {
+    return fail("Seul le coordinateur de l'équipe peut modifier cette idée.", 403);
+  }
 
   const body = await req.json().catch(() => ({}));
 

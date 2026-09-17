@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth, acceptRequest, refuseRequest, leaveIdea } from "@/lib/api";
+import { auth, acceptRequest, refuseRequest, leaveIdea, deleteIdea } from "@/lib/api";
 import { DISC } from "@/lib/constants";
 import { useAuth } from "../components/AuthProvider";
 import ProfileEditor from "../components/ProfileEditor";
@@ -26,6 +26,10 @@ export default function MonEspacePage() {
   const [leaving, setLeaving] = useState(false);
   const [successor, setSuccessor] = useState("");
   const [leaveErr, setLeaveErr] = useState("");
+  // Supprimer l'idée : confirmation par saisie du titre (destructif pour les autres).
+  const [deleting, setDeleting] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [deleteErr, setDeleteErr] = useState("");
 
   // Redirection si non connecté (une fois l'état chargé).
   useEffect(() => {
@@ -89,6 +93,20 @@ export default function MonEspacePage() {
       setNotice("Vous avez quitté l'équipe.");
     } catch (e) {
       setLeaveErr(e.message);
+    }
+  }
+
+  async function doDelete() {
+    setDeleteErr("");
+    try {
+      await deleteIdea(idea.id);
+      setDeleting(false);
+      setConfirmTitle("");
+      await refresh();
+      // TODO à valider — message après la suppression de l'idée.
+      setNotice("Votre idée a été supprimée.");
+    } catch (e) {
+      setDeleteErr(e.message);
     }
   }
 
@@ -164,9 +182,12 @@ export default function MonEspacePage() {
                       <button type="button" className="btn btn-s btn-ghost" onClick={() => router.push("/defis/" + idea.challengeRef)}>
                         Voir le défi
                       </button>
-                      <button type="button" className="btn btn-s btn-ghost" onClick={openEditMyIdea}>
-                        Modifier l'idée
-                      </button>
+                      {/* A.4 — seul le coordinateur modifie l'idée. */}
+                      {isCoord && (
+                        <button type="button" className="btn btn-s btn-ghost" onClick={openEditMyIdea}>
+                          Modifier l'idée
+                        </button>
+                      )}
                       {/* TODO à valider — quitter l'équipe. */}
                       <button
                         type="button"
@@ -179,6 +200,20 @@ export default function MonEspacePage() {
                       >
                         Quitter l'équipe
                       </button>
+                      {/* A.3 — supprimer l'idée : coordinateur seul. */}
+                      {isCoord && (
+                        <button
+                          type="button"
+                          className="btn btn-s btn-ghost"
+                          onClick={() => {
+                            setDeleteErr("");
+                            setConfirmTitle("");
+                            setDeleting(true);
+                          }}
+                        >
+                          Supprimer l'idée
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -245,6 +280,40 @@ export default function MonEspacePage() {
                         </div>
                       </>
                     )}
+                  </div>
+                )}
+
+                {deleting && (
+                  <div className="panel" id="delete-panel">
+                    {/* A.3 — double confirmation : saisir le titre exact active le bouton. */}
+                    <h3 style={{ margin: "0 0 12px" }}>Supprimer l'idée</h3>
+                    <p style={{ maxWidth: "60ch" }}>
+                      Cette idée sera retirée et tous les membres seront libérés. Les demandes en
+                      cours seront annulées. Cette action est définitive.
+                    </p>
+                    <div style={{ marginTop: "16px", maxWidth: "46ch" }}>
+                      <label htmlFor="delete-confirm">Saisissez le titre de l'idée pour confirmer</label>
+                      <input
+                        id="delete-confirm"
+                        type="text"
+                        value={confirmTitle}
+                        onChange={(e) => setConfirmTitle(e.target.value)}
+                      />
+                    </div>
+                    {deleteErr && <p className="err">{deleteErr}</p>}
+                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "16px" }}>
+                      <button
+                        type="button"
+                        className="btn btn-s btn-g"
+                        disabled={confirmTitle.trim() !== idea.title}
+                        onClick={doDelete}
+                      >
+                        Supprimer l'idée
+                      </button>
+                      <button type="button" className="btn btn-s btn-ghost" onClick={() => setDeleting(false)}>
+                        Annuler
+                      </button>
+                    </div>
                   </div>
                 )}
               </>

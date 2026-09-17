@@ -88,13 +88,19 @@ export default function IdeaCard({ idea, open, myIdea, onEdit, onJoin, onClose }
       {open && !member && !hasTeam && idea.requested && (
         <p className="small mut">Votre demande est en attente de réponse.</p>
       )}
+
+      {/* A.2 — le coordinateur ne peut finaliser qu'à partir de 2 membres : motif visible. */}
+      {idea.isCoord && idea.status === "ouverte" && (idea.membresCount ?? 0) < 2 && (
+        <p className="small mut">Il faut au moins deux membres pour finaliser votre équipe.</p>
+      )}
     </div>
   );
 }
 
 function Acts({ idea, open, member, hasTeam, onEdit, onJoin, onClose }) {
   const acts = [];
-  if (member) {
+  // A.4 — seul le coordinateur voit « Modifier » (les membres ne l'éditent plus).
+  if (idea.isCoord) {
     acts.push(
       <button type="button" className="btn btn-s btn-ghost" key="edit" onClick={() => onEdit(idea)}>
         Modifier
@@ -102,8 +108,17 @@ function Acts({ idea, open, member, hasTeam, onEdit, onJoin, onClose }) {
     );
   }
   if (idea.isCoord && idea.status === "ouverte") {
+    // A.2 — désactivé sous 2 membres, motif dans le title (et visible sous la carte).
+    const canClose = (idea.membresCount ?? 0) >= 2;
     acts.push(
-      <button type="button" className="btn btn-s btn-ghost" key="close" onClick={() => onClose(idea)}>
+      <button
+        type="button"
+        className="btn btn-s btn-ghost"
+        key="close"
+        disabled={!canClose}
+        title={canClose ? undefined : "Il faut au moins deux membres pour finaliser votre équipe."}
+        onClick={canClose ? () => onClose(idea) : undefined}
+      >
         Clôturer les candidatures
       </button>
     );

@@ -26,6 +26,8 @@ export const POST = handler(async (_req, { params }) => {
     return fail("Seul le coordinateur de l'idée peut clôturer les candidatures.", 403);
   }
   if (idea.status === "fermee") return fail("Les candidatures de cette idée sont déjà closes.", 409);
+  // TODO à valider — minimum de 2 membres pour finaliser (A.2).
+  if (idea.membres.length < 2) return fail("Il faut au moins deux membres pour finaliser votre équipe.", 409);
 
   idea.status = "fermee";
   await idea.save();
