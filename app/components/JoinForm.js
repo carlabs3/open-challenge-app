@@ -13,7 +13,7 @@ import IdentityFields, { EMPTY_IDENTITY, validateIdentity } from "./IdentityFiel
  * séparés. Si l'inscription réussit mais que la demande échoue, le compte
  * EXISTE — on le dit et on propose de réessayer la seule action.
  */
-export default function JoinForm({ idea, me, onDone, onCancel }) {
+export default function JoinForm({ idea, me, onDone, onCancel, challengeLabel }) {
   const [note, setNote] = useState("");
   const [ident, setIdent] = useState(EMPTY_IDENTITY);
   const [err, setErr] = useState({});
@@ -68,6 +68,13 @@ export default function JoinForm({ idea, me, onDone, onCancel }) {
 
   return (
     <div className="panel" id="join-panel">
+      {/* `challengeLabel` : rappel du défi quand le formulaire est ouvert hors de la
+          page d'un défi (modal de « Les équipes »). Absent sur la page d'un défi. */}
+      {challengeLabel && (
+        <p className="lab" style={{ marginBottom: "4px" }}>
+          {challengeLabel}
+        </p>
+      )}
       <h3 id="join-title">Rejoindre « {idea.title} »</h3>
       <p className="small mut" style={{ margin: "8px 0 24px", maxWidth: "58ch" }}>
         Votre demande part au coordinateur de l'idée, qui répond sous 48 h. Votre adresse mail ne lui

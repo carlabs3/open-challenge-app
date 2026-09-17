@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { getParticipants, invite } from "@/lib/api";
 import { DISC } from "@/lib/constants";
 import { useAuth } from "../components/AuthProvider";
+import Modal from "../components/Modal";
 
 /**
  * Participants — port de la vue #v-participants (maquette:601) et de renderDir
@@ -32,40 +33,16 @@ export default function ParticipantsPage() {
   const [inviteErr, setInviteErr] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Modal : le panneau reçoit le focus à l'ouverture ; la carte cliquée le récupère
-  // à la fermeture.
-  const panelRef = useRef(null);
-  const triggerRef = useRef(null);
-
   const load = () => getParticipants().then(setPeople).catch(() => setPeople([]));
   useEffect(() => {
     load();
   }, []);
 
-  // Tant que la fiche (modal) est ouverte : scroll du body bloqué, Escape ferme,
-  // focus sur le panneau ; au démontage, on rend le scroll et le focus à la carte.
-  useEffect(() => {
-    if (!selected) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    panelRef.current?.focus();
-    const onKey = (e) => {
-      if (e.key === "Escape") closeFiche();
-    };
-    document.addEventListener("keydown", onKey);
-    const trigger = triggerRef.current;
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      document.removeEventListener("keydown", onKey);
-      trigger?.focus();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected]);
-
   const myIdea = data?.idea ?? null;
 
-  function openFiche(p, el) {
-    triggerRef.current = el || null;
+  // Le comportement modal (overlay, Escape, clic sur le fond, scroll bloqué, focus)
+  // est géré par <Modal> ; ici on ne fait qu'ouvrir/fermer et réinitialiser l'état.
+  function openFiche(p) {
     setSelected(p);
     setInviteOpen(false);
     setInviteNote("");
@@ -155,25 +132,11 @@ export default function ParticipantsPage() {
           </p>
           <div id="dir-notices">{notice && <div className="notice">{notice}</div>}</div>
 
-          {/* Fiche du participant sélectionné — panneau `.panel` présenté en modal centré
-              (overlay + centrage ajoutés dans globals.css). Profil complet, jamais l'adresse
-              mail. Ferme au clic sur le fond, sur « Fermer » ou avec Escape. */}
+          {/* Fiche du participant sélectionné — présentée en modal réutilisable (<Modal>).
+              Profil complet, jamais l'adresse mail. */}
           {selected && (
-            <div
-              className="modal-overlay"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) closeFiche();
-              }}
-            >
-              <div
-                className="panel modal-panel"
-                id="fiche-panel"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="fiche-name"
-                tabIndex={-1}
-                ref={panelRef}
-              >
+            <Modal onClose={closeFiche} labelledBy="fiche-name">
+              <div className="panel" id="fiche-panel">
                 <h3 id="fiche-name">{selected.name}</h3>
               <p className="small mut" style={{ margin: "6px 0 14px" }}>
                 {selected.lab}
@@ -247,7 +210,7 @@ export default function ParticipantsPage() {
                   </button>
                 </p>
               </div>
-            </div>
+            </Modal>
           )}
 
           <div className="filters" id="dir-filters">
@@ -291,11 +254,11 @@ export default function ParticipantsPage() {
                     tabIndex={0}
                     aria-pressed={!!isSel}
                     style={{ cursor: "pointer" }}
-                    onClick={(e) => openFiche(p, e.currentTarget)}
+                    onClick={() => openFiche(p)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        openFiche(p, e.currentTarget);
+                        openFiche(p);
                       }
                     }}
                   >

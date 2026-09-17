@@ -213,14 +213,16 @@ section.tight{padding:66px 0}
 /* ---------- forms ---------- */
 .panel{border:1px solid var(--ink);background:#fff;padding:30px;margin:26px 0 8px;scroll-margin-top:92px}
 
-/* Modal (fiche participant) : overlay plein écran + panneau .panel centré au-dessus.
-   Le contenu de la page ne défile pas ; s'il déborde, c'est le panneau qui défile. */
+/* Modal réutilisable (composant Modal) : overlay plein écran + fenêtre centrée
+   qui contient un .panel (fourni par l'enfant). Le contenu de la page ne défile
+   pas ; s'il déborde, c'est le panneau qui défile en interne. */
 .modal-overlay{position:fixed;inset:0;z-index:80;background:rgba(32,27,54,.55);
   display:flex;align-items:center;justify-content:center;padding:24px}
-.modal-panel{margin:0;width:100%;max-width:520px;max-height:calc(100vh - 48px);overflow-y:auto}
+.modal-window{width:100%;max-width:520px;display:flex}
+.modal-window > .panel{margin:0;width:100%;max-height:calc(100vh - 48px);overflow-y:auto}
 @media (max-width:560px){
   .modal-overlay{padding:14px}
-  .modal-panel{max-height:calc(100vh - 28px)}
+  .modal-window > .panel{max-height:calc(100vh - 28px)}
 }
 form{display:grid;gap:20px;max-width:58ch}
 label{display:block;font-size:0.9rem;font-weight:500;margin-bottom:7px}

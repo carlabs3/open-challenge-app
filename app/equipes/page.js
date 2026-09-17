@@ -6,6 +6,8 @@ import { getIdeas, getChallenges } from "@/lib/api";
 import { DISC, THEMES } from "@/lib/constants";
 import { useAuth } from "../components/AuthProvider";
 import IdeaCard from "../components/IdeaCard";
+import JoinForm from "../components/JoinForm";
+import Modal from "../components/Modal";
 
 /**
  * « Les équipes » (phase 4.1) — toutes les idées visibles de tous les défis, en
@@ -19,13 +21,15 @@ import IdeaCard from "../components/IdeaCard";
  */
 export default function EquipesPage() {
   const router = useRouter();
-  const { data } = useAuth();
+  const { me, data, refresh } = useAuth();
   const [payload, setPayload] = useState(null); // { open, closed } | false (erreur)
   const [challenges, setChallenges] = useState([]); // les 7 défis, pour l'ordre des pastilles
   const [defi, setDefi] = useState("all");
   const [theme, setTheme] = useState("all");
   const [profil, setProfil] = useState("all");
   const [statut, setStatut] = useState("all"); // all | ouvertes | constituees
+  const [joinIdea, setJoinIdea] = useState(null); // idée dont on ouvre le formulaire « Rejoindre »
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     getIdeas()
@@ -43,6 +47,25 @@ export default function EquipesPage() {
   function goToDefi(idea, opts = {}) {
     if (opts.edit) sessionStorage.setItem("open-edit", String(idea.id));
     router.push("/defis/" + idea.challengeRef);
+  }
+
+  // Rejoindre depuis « Les équipes » : le formulaire s'ouvre en modal, ici même.
+  // À l'envoi, on met à jour la carte sur place (requested=true → bouton « Demande
+  // envoyée » désactivé), sans recharger ni naviguer.
+  async function afterJoin(message) {
+    const id = joinIdea?.id;
+    setPayload((prev) =>
+      prev
+        ? {
+            open: prev.open.map((i) => (String(i.id) === String(id) ? { ...i, requested: true } : i)),
+            closed: prev.closed.map((i) => (String(i.id) === String(id) ? { ...i, requested: true } : i)),
+          }
+        : prev
+    );
+    setJoinIdea(null);
+    if (message) setNotice(message);
+    // Rafraîchit la cloche / « Mes demandes envoyées » en arrière-plan (pas de reload).
+    refresh();
   }
 
   if (payload === false) {
@@ -117,6 +140,8 @@ export default function EquipesPage() {
             Les équipes ouvertes cherchent encore des membres ; les équipes constituées ont clôturé
             leurs candidatures. Filtrez par défi, par thème ou par profil recherché.
           </p>
+
+          {notice && <div className="notice">{notice}</div>}
 
           {/* Filtres en colonne latérale gauche (sticky), liste à droite. La logique
               de filtrage ne change pas : seule la disposition. Sous 900px, la colonne
@@ -213,7 +238,7 @@ export default function EquipesPage() {
                           open
                           myIdea={myIdea}
                           onEdit={(idea) => goToDefi(idea, { edit: true })}
-                          onJoin={(idea) => goToDefi(idea)}
+                          onJoin={(idea) => setJoinIdea(idea)}
                           onClose={(idea) => goToDefi(idea)}
                         />
                       ))
@@ -239,7 +264,7 @@ export default function EquipesPage() {
                           open={false}
                           myIdea={myIdea}
                           onEdit={(idea) => goToDefi(idea, { edit: true })}
-                          onJoin={(idea) => goToDefi(idea)}
+                          onJoin={(idea) => setJoinIdea(idea)}
                           onClose={(idea) => goToDefi(idea)}
                         />
                       ))
@@ -251,6 +276,23 @@ export default function EquipesPage() {
           </div>
         </div>
       </section>
+
+      {/* « Rejoindre » ouvre JoinForm en modal, sans quitter la page. Le titre du modal
+          rappelle le défi (implicite ailleurs, pas ici). « Modifier » / « Clôturer »
+          continuent de renvoyer vers la page du défi (actions de coordinateur). */}
+      {joinIdea && (
+        <Modal onClose={() => setJoinIdea(null)} labelledBy="join-title">
+          <JoinForm
+            idea={joinIdea}
+            me={me}
+            challengeLabel={
+              joinIdea.challengeRef + (joinIdea.challengeTitle ? " · " + joinIdea.challengeTitle : "")
+            }
+            onDone={afterJoin}
+            onCancel={() => setJoinIdea(null)}
+          />
+        </Modal>
+      )}
     </div>
   );
 }
