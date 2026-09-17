@@ -6,6 +6,9 @@ import { auth, acceptRequest, refuseRequest, leaveIdea, deleteIdea } from "@/lib
 import { DISC } from "@/lib/constants";
 import { useAuth } from "../components/AuthProvider";
 import ProfileEditor from "../components/ProfileEditor";
+import Modal from "../components/Modal";
+import ParticipantFiche from "../components/ParticipantFiche";
+import MemberCount from "../components/MemberCount";
 
 /**
  * Mon espace — port de la vue #v-espace (maquette:727) et de renderEspace
@@ -30,6 +33,8 @@ export default function MonEspacePage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
   const [deleteErr, setDeleteErr] = useState("");
+  // Fiche modale d'un coéquipier (même composant que /participants).
+  const [memberFiche, setMemberFiche] = useState(null);
 
   // Redirection si non connecté (une fois l'état chargé) — vers l'onglet connexion.
   useEffect(() => {
@@ -56,9 +61,12 @@ export default function MonEspacePage() {
   if (loading || !me) return <div className="view on" />;
 
   const idea = data.idea;
-  const incoming = data.requests?.incoming ?? [];
   const outgoing = data.requests?.outgoing ?? [];
   const invitations = data.invitations ?? [];
+  // Demandes / invitations en cours SUR mon équipe (visibles par tous les membres ;
+  // boutons de décision réservés au coordinateur). Fusionnées dans la fiche « Mon équipe ».
+  const teamRequests = idea?.teamRequests ?? [];
+  const teamInvitations = idea?.teamInvitations ?? [];
   const isCoord = idea && String(idea.coord) === String(me.id);
 
   async function decide(reqId, accept) {
@@ -174,51 +182,103 @@ export default function MonEspacePage() {
               </div>
             ) : (
               <>
+                {/* C.3 — fiche complète de mon équipe. Réutilise .idea/.pill/.disc/.acts.
+                    TODO à valider — libellés nouveaux (statut, « Membres », etc.). */}
                 <div className="idea mine">
                   <div className="idea-top">
                     <h3>{idea.title}</h3>
-                    <span className="pill b">{isCoord ? "vous coordonnez" : "membre"}</span>
+                    <div style={{ display: "flex", gap: "7px", flexWrap: "wrap", alignItems: "center" }}>
+                      <span className="pill b">{isCoord ? "vous coordonnez" : "membre"}</span>
+                      <MemberCount count={idea.membresCount ?? 0} />
+                      <span className={"pill " + (idea.status === "ouverte" ? "g" : "")}>
+                        {idea.status === "ouverte" ? "ouverte" : "constituée"}
+                      </span>
+                    </div>
                   </div>
-                  <p className="angle">{(idea.challengeRef ? idea.challengeRef + " · " : "") + (idea.challengeTitle || "")}</p>
-                  <div className="idea-foot">
-                    <span>{(idea.membresNames || []).join(", ")}</span>
-                    <div className="acts">
-                      <button type="button" className="btn btn-s btn-ghost" onClick={() => router.push("/defis/" + idea.challengeRef)}>
-                        Voir le défi
-                      </button>
-                      {/* A.4 — seul le coordinateur modifie l'idée. */}
-                      {isCoord && (
-                        <button type="button" className="btn btn-s btn-ghost" onClick={openEditMyIdea}>
-                          Modifier l'idée
+
+                  <p className="lab" style={{ marginTop: "10px" }}>
+                    <button type="button" className="link" onClick={() => router.push("/defis/" + idea.challengeRef)}>
+                      {idea.challengeRef}
+                      {idea.challengeTitle ? " · " + idea.challengeTitle : ""}
+                    </button>
+                  </p>
+
+                  <p className="angle">{idea.angle}</p>
+                  {idea.full && (
+                    <p style={{ marginTop: "12px", maxWidth: "70ch", whiteSpace: "pre-line" }}>{idea.full}</p>
+                  )}
+
+                  {(idea.has?.length || idea.want?.length) ? (
+                    <div className="disc" style={{ marginTop: "14px" }}>
+                      {(idea.has || []).map((k) => (
+                        <span className="has" key={"h" + k}>
+                          {DISC[k]}
+                        </span>
+                      ))}
+                      {(idea.want || []).map((k) => (
+                        <span className="want" key={"w" + k}>
+                          cherche {DISC[k].toLowerCase()}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div style={{ marginTop: "18px" }}>
+                    <p className="small mut" style={{ marginBottom: "8px" }}>
+                      Membres
+                    </p>
+                    <div className="tags">
+                      {(idea.membresList || []).map((m) => (
+                        <button
+                          type="button"
+                          key={m.id}
+                          className="pill s"
+                          style={{ cursor: "pointer", border: "none", fontFamily: "inherit" }}
+                          onClick={() => setMemberFiche({ ...m, challengeRef: idea.challengeRef })}
+                        >
+                          {m.name}
+                          {String(m.id) === String(idea.coord) ? " · coordinateur" : ""}
                         </button>
-                      )}
-                      {/* TODO à valider — quitter l'équipe. */}
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="acts" style={{ marginTop: "20px" }}>
+                    <button type="button" className="btn btn-s btn-ghost" onClick={() => router.push("/defis/" + idea.challengeRef)}>
+                      Voir le défi
+                    </button>
+                    {/* A.4 — seul le coordinateur modifie l'idée. */}
+                    {isCoord && (
+                      <button type="button" className="btn btn-s btn-ghost" onClick={openEditMyIdea}>
+                        Modifier l'idée
+                      </button>
+                    )}
+                    {/* TODO à valider — quitter l'équipe. */}
+                    <button
+                      type="button"
+                      className="btn btn-s btn-ghost"
+                      onClick={() => {
+                        setLeaveErr("");
+                        setSuccessor("");
+                        setLeaving(true);
+                      }}
+                    >
+                      Quitter l'équipe
+                    </button>
+                    {/* A.3 — supprimer l'idée : coordinateur seul. */}
+                    {isCoord && (
                       <button
                         type="button"
                         className="btn btn-s btn-ghost"
                         onClick={() => {
-                          setLeaveErr("");
-                          setSuccessor("");
-                          setLeaving(true);
+                          setDeleteErr("");
+                          setConfirmTitle("");
+                          setDeleting(true);
                         }}
                       >
-                        Quitter l'équipe
+                        Supprimer l'idée
                       </button>
-                      {/* A.3 — supprimer l'idée : coordinateur seul. */}
-                      {isCoord && (
-                        <button
-                          type="button"
-                          className="btn btn-s btn-ghost"
-                          onClick={() => {
-                            setDeleteErr("");
-                            setConfirmTitle("");
-                            setDeleting(true);
-                          }}
-                        >
-                          Supprimer l'idée
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
 
@@ -320,49 +380,75 @@ export default function MonEspacePage() {
                     </div>
                   </div>
                 )}
+
+                {/* C.3 — demandes ET invitations en cours sur l'équipe, fusionnées ici.
+                    Visibles par TOUS les membres ; les boutons de décision (Accepter /
+                    Refuser une demande) ne s'affichent que pour le coordinateur. Une
+                    invitation envoyée est en attente de réponse de la personne, sans
+                    action côté équipe. TODO à valider — libellés nouveaux. */}
+                <div className="block-head" style={{ marginTop: "24px" }}>
+                  <h3>
+                    {teamRequests.length + teamInvitations.length
+                      ? `Demandes et invitations en cours (${teamRequests.length + teamInvitations.length})`
+                      : "Demandes et invitations en cours"}
+                  </h3>
+                  <p>{isCoord ? "Vous décidez des demandes reçues." : "Le coordinateur décide des demandes reçues."}</p>
+                </div>
+                <div className="ideas" id="esp-team-requests">
+                  {!(teamRequests.length + teamInvitations.length) && <div className="empty">Rien en cours.</div>}
+                  {teamRequests.map((r) => (
+                    <div className="idea" key={String(r.id)}>
+                      <div className="idea-top">
+                        <h3>{r.from.name} veut rejoindre votre équipe</h3>
+                        <span className="pill a">à traiter</span>
+                      </div>
+                      <p className="angle">
+                        {r.from.lab} · {(r.from.disc || []).map((x) => DISC[x]).join(", ")}
+                      </p>
+                      {r.note && <p className="small mut">« {r.note} »</p>}
+                      <div className="idea-foot">
+                        <span>Reçue le {shortDate(r.createdAt)}</span>
+                        {isCoord && (
+                          <div className="acts">
+                            <button type="button" className="btn btn-s btn-g" onClick={() => decide(r.id, true)}>
+                              Accepter
+                            </button>
+                            <button type="button" className="btn btn-s btn-ghost" onClick={() => decide(r.id, false)}>
+                              Refuser
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {teamInvitations.map((inv) => (
+                    <div className="idea" key={String(inv.id)}>
+                      <div className="idea-top">
+                        <h3>
+                          {inv.proposedByName
+                            ? `${inv.proposedByName} a invité ${inv.to.name}`
+                            : `Invitation envoyée à ${inv.to.name}`}
+                        </h3>
+                        <span className="pill b">invitation envoyée</span>
+                      </div>
+                      <p className="angle">
+                        {inv.to.lab} · {(inv.to.disc || []).map((x) => DISC[x]).join(", ")}
+                      </p>
+                      <div className="idea-foot">
+                        <span>Envoyée le {shortDate(inv.createdAt)} · en attente de réponse</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </>
             )}
           </div>
 
-          {/* Trois listes distinctes et étiquetées (phase 2) : demandes reçues sur mon
-              équipe, mes demandes envoyées, et invitations que j'ai reçues. Avant, les
-              invitations n'apparaissaient nulle part et étaient inacceptables. */}
+          {/* Deux listes individuelles (ce qui me concerne, MOI, hors de mon équipe) :
+              mes demandes envoyées, et les invitations que j'ai reçues d'autres équipes.
+              Les demandes/invitations DE mon équipe sont dans la fiche ci-dessus. */}
 
-          {/* 1. Demandes reçues sur mon équipe — je décide (Accepter / Refuser). */}
-          <div className="block-head">
-            <h3 id="esp-req-count">
-              {incoming.length ? `Demandes reçues sur mon équipe (${incoming.length})` : "Demandes reçues sur mon équipe"}
-            </h3>
-            <p>Les personnes qui souhaitent rejoindre votre équipe.</p>
-          </div>
-          <div className="ideas" id="esp-requests">
-            {!incoming.length && <div className="empty">Aucune demande pour l'instant.</div>}
-            {incoming.map((r) => (
-              <div className="idea" key={String(r.id)}>
-                <div className="idea-top">
-                  <h3>{r.from.name} veut rejoindre votre équipe</h3>
-                  <span className="pill a">à traiter</span>
-                </div>
-                <p className="angle">
-                  {r.from.lab} · {(r.from.disc || []).map((x) => DISC[x]).join(", ")}
-                </p>
-                {r.note && <p className="small mut">« {r.note} »</p>}
-                <div className="idea-foot">
-                  <span>Reçue le {shortDate(r.createdAt)}</span>
-                  <div className="acts">
-                    <button type="button" className="btn btn-s btn-g" onClick={() => decide(r.id, true)}>
-                      Accepter
-                    </button>
-                    <button type="button" className="btn btn-s btn-ghost" onClick={() => decide(r.id, false)}>
-                      Refuser
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* 2. Mes demandes envoyées — état seul, sans boutons. */}
+          {/* Mes demandes envoyées — état seul, sans boutons. */}
           <div className="block-head">
             <h3>{outgoing.length ? `Mes demandes envoyées (${outgoing.length})` : "Mes demandes envoyées"}</h3>
             <p>L'état des demandes que vous avez envoyées pour rejoindre une équipe.</p>
@@ -436,6 +522,14 @@ export default function MonEspacePage() {
               Supprimer mon compte
             </a>
           </p>
+
+          {/* Fiche modale d'un coéquipier — même composant que /participants. Sans
+              contexte d'invitation (on regarde un membre de sa propre équipe). */}
+          {memberFiche && (
+            <Modal onClose={() => setMemberFiche(null)} labelledBy="fiche-name">
+              <ParticipantFiche participant={memberFiche} onClose={() => setMemberFiche(null)} />
+            </Modal>
+          )}
         </div>
       </section>
     </div>

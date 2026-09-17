@@ -171,21 +171,25 @@ elige desde el enlace, nunca desde el formulario de la web.
 
 ### `GET /api/me`
 Requiere token. Devuelve
-`{ me, idea, requests: { incoming[], outgoing[] }, invitations[], notifications[] }`.
-Es lo que necesita « Mon espace » de una sola vez. Tres listas **separadas por
-`direction`**:
-- `requests.incoming` — demandes recibidas en las ideas que coordino (`direction:"demande"`).
+`{ me, idea, requests: { outgoing[] }, invitations[], notifications[] }`.
+Es lo que necesita « Mon espace » de una sola vez.
 - `requests.outgoing` — demandes que yo envié (`direction:"demande"`). Nunca invitaciones.
 - `invitations` — invitaciones que yo recibí (`from = yo`, `direction:"invitation"`,
   `status:"en_attente"`), enriquecidas con `{ idea:{id,title,challengeRef}, inviterName }`.
-  Antes no salían en ninguna lista y eran inaceptables desde la interfaz.
 
-Si tengo equipo, `idea` incluye además `pendingInvitations` (nº de invitaciones
-en espera de mi equipo), `inProgressFrom` (ids de personas con una demande o
-invitación en curso sobre mi equipo) y `membresList` (`[{ id, name }]` de los
-coéquipiers, sin correo). « Participants » usa los dos primeros para saber si
-puede invitar; « Mon espace » usa `membresList` para el selector de sucesor al
-transmitir la coordinación (`/leave`).
+**Las demandes/invitaciones EN CURSO sobre mi equipo ya no van en `requests.incoming`**
+(eliminado): viven en `idea.teamRequests` / `idea.teamInvitations`, visibles para
+**todos** los miembros dentro de la ficha « Mon équipe » (los botones de decidir los
+pinta el cliente solo si soy el coordinador).
+
+Si tengo equipo, `idea` incluye además:
+- `membresList` — `[{ id, name, lab, disc, li, bio }]` (nunca el correo). Para la ficha
+  modal de cada miembro y el selector de sucesor de `/leave`.
+- `pendingInvitations`, `inProgressFrom` — para « Participants » (¿puedo invitar?).
+- `teamRequests` — `[{ id, from:{id,name,lab,disc}, note, createdAt }]` (demandes en espera).
+- `teamInvitations` — `[{ id, to:{id,name,lab,disc}, proposedByName, createdAt }]` (invitaciones en espera enviadas por el equipo).
+
+Ningún correo en ninguna de estas estructuras.
 
 ### `PATCH /api/me`
 Requiere sesión. Rectificación RGPD de los datos propios. **Solo** estos campos;

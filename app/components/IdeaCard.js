@@ -1,6 +1,7 @@
 "use client";
 
 import { DISC } from "@/lib/constants";
+import MemberCount from "./MemberCount";
 
 /**
  * Carte d'idée — port de ideaCard (maquette:1152). Mêmes classes, même logique
@@ -23,12 +24,6 @@ export default function IdeaCard({ idea, open, myIdea, onEdit, onJoin, onClose }
 
   const hasTeam = !!myIdea;
 
-  // Compteur informatif X/5 (4.2) — dérivé de membres.length, sans nouvelle règle.
-  // < 3 : couleur d'alerte (.pill a) ; 3–4 : validation (.pill g) ; 5 : « équipe complète ».
-  const count = idea.membresCount ?? 0;
-  const complete = count >= 5;
-  const counterCls = complete ? "" : count < 3 ? "a" : "g";
-
   return (
     <div className={cls}>
       {/* Sur « Les équipes », chaque carte rappelle son défi (implicite sur la page d'un
@@ -46,7 +41,7 @@ export default function IdeaCard({ idea, open, myIdea, onEdit, onJoin, onClose }
               vérification de l'adresse mail, pas à une ouverture d'idée, et aucun bouton ne
               le change. Le libellé promettait une action inexistante (voir API.md). */}
           {member && <span className="pill b">{idea.isCoord ? "vous coordonnez" : "votre équipe"}</span>}
-          <span className={"pill " + counterCls}>{complete ? "équipe complète" : count + "/5"}</span>
+          <MemberCount count={idea.membresCount ?? 0} />
           <span className={"pill " + (open ? "g" : "")}>{open ? "cherche des profils" : "candidatures closes"}</span>
         </div>
       </div>

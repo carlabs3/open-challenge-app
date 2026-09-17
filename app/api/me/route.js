@@ -17,15 +17,23 @@ export const GET = handler(async () => {
   // Défi de mon équipe (réf pour les hints, titre pour « Mon espace »).
   const myChallenge = idea ? await Challenge.findById(idea.challenge).select("ref title").lean() : null;
   const myChallengeRef = myChallenge?.ref ?? null;
-  // Coéquipiers (nom + id) : la liste d'ids/noms sert à l'affichage ET au sélecteur
-  // de successeur quand le coordinateur quitte l'équipe.
-  const membresDocs = idea ? await Participant.find({ _id: { $in: idea.membres } }).select("name").lean() : [];
-  const membresList = membresDocs.map((p) => ({ id: String(p._id), name: p.name }));
+  // Coéquipiers : profil complet (JAMAIS le mail). Sert à l'affichage, au sélecteur
+  // de successeur (départ du coordinateur) et à la fiche modale de chaque membre
+  // dans « Mon équipe » (mêmes champs que /participants).
+  const membresDocs = idea
+    ? await Participant.find({ _id: { $in: idea.membres } }).select("name lab disc li bio").lean()
+    : [];
+  const membresList = membresDocs.map((p) => ({
+    id: String(p._id),
+    name: p.name,
+    lab: p.lab,
+    disc: p.disc ?? [],
+    li: p.li ?? "",
+    bio: p.bio ?? "",
+  }));
   const membresNames = membresList.map((m) => m.name);
 
-  const [incomingRaw, outgoingRaw, invitationsRaw, notifications] = await Promise.all([
-    // Demandes reçues sur les idées que je coordonne (uniquement des « demande »).
-    JoinRequest.find({ coord: me._id, status: "en_attente", direction: "demande" }).sort({ createdAt: -1 }).lean(),
+  const [outgoingRaw, invitationsRaw, notifications] = await Promise.all([
     // Demandes que J'AI envoyées. `direction: "demande"` exclut les invitations :
     // une invitation reçue n'est pas une demande envoyée par moi.
     JoinRequest.find({ from: me._id, direction: "demande" }).sort({ createdAt: -1 }).lean(),
@@ -35,31 +43,43 @@ export const GET = handler(async () => {
     Notification.find({ to: me._id }).sort({ createdAt: -1 }).limit(50).lean(),
   ]);
 
-  // Invitations en attente sur MON équipe : sert à « Participants » pour savoir
-  // combien de places sont déjà réservées et qui a déjà quelque chose en cours.
+  // Demandes et invitations EN COURS sur MON équipe : visibles par tous les membres
+  // dans la fiche « Mon équipe » (les boutons de décision, eux, seront réservés au
+  // coordinateur côté client). `pendingInvitations` / `inProgressFrom` restent pour
+  // « Participants ». JAMAIS le mail des personnes concernées.
   let pendingInvitations = 0;
   let inProgressFrom = [];
+  let teamRequests = [];
+  let teamInvitations = [];
   if (idea) {
-    const teamPending = await JoinRequest.find({ idea: idea._id, status: "en_attente" }).select("from direction").lean();
+    const teamPending = await JoinRequest.find({ idea: idea._id, status: "en_attente" }).sort({ createdAt: -1 }).lean();
     inProgressFrom = [...new Set(teamPending.map((r) => String(r.from)))];
     pendingInvitations = teamPending.filter((r) => r.direction === "invitation").length;
-  }
 
-  // Enrichir les demandes reçues avec le profil du demandeur (jamais son mail).
-  const fromIds = incomingRaw.map((r) => r.from);
-  const askers = fromIds.length
-    ? await Participant.find({ _id: { $in: fromIds } }).select("name lab disc").lean()
-    : [];
-  const askerById = new Map(askers.map((p) => [String(p._id), p]));
-  const incoming = incomingRaw.map((r) => {
-    const p = askerById.get(String(r.from));
-    return {
-      id: r._id,
-      from: { id: r.from, name: p?.name ?? null, lab: p?.lab ?? null, disc: p?.disc ?? [] },
-      note: r.note ?? "",
-      createdAt: r.createdAt,
+    const ids = new Set();
+    teamPending.forEach((r) => {
+      ids.add(String(r.from));
+      if (r.proposedBy) ids.add(String(r.proposedBy));
+    });
+    const profs = ids.size ? await Participant.find({ _id: { $in: [...ids] } }).select("name lab disc").lean() : [];
+    const profById = new Map(profs.map((p) => [String(p._id), p]));
+    const prof = (id) => {
+      const p = profById.get(String(id));
+      return { id: String(id), name: p?.name ?? null, lab: p?.lab ?? null, disc: p?.disc ?? [] };
     };
-  });
+
+    teamRequests = teamPending
+      .filter((r) => r.direction === "demande")
+      .map((r) => ({ id: r._id, from: prof(r.from), note: r.note ?? "", createdAt: r.createdAt }));
+    teamInvitations = teamPending
+      .filter((r) => r.direction === "invitation")
+      .map((r) => ({
+        id: r._id,
+        to: prof(r.from), // pour une invitation, `from` est la personne invitée
+        proposedByName: r.proposedBy ? profById.get(String(r.proposedBy))?.name ?? null : null,
+        createdAt: r.createdAt,
+      }));
+  }
 
   // Enrichir demandes envoyées ET invitations reçues avec l'idée visée et son défi.
   const ideaIds = [...new Set([...outgoingRaw, ...invitationsRaw].map((r) => String(r.idea)))];
@@ -114,9 +134,11 @@ export const GET = handler(async () => {
           membresList,
           pendingInvitations,
           inProgressFrom,
+          teamRequests,
+          teamInvitations,
         }
       : null,
-    requests: { incoming, outgoing },
+    requests: { outgoing },
     invitations,
     notifications,
   });
