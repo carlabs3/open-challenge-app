@@ -16,7 +16,7 @@ export default function HomeCta({ tone = "light" }) {
   // TODO à valider — libellés de l'appel à l'action.
   const primary = me
     ? { label: "Voir les défis", href: "/defis" }
-    : { label: "Rejoindre le Challenge", href: "/participer" };
+    : { label: "Participer", href: "/participer" };
   const secondary = me
     ? { label: "Voir les équipes", href: "/equipes" }
     : { label: "Voir les défis", href: "/defis" };
@@ -28,7 +28,17 @@ export default function HomeCta({ tone = "light" }) {
   return (
     <div
       className={wrapClass}
-      style={{ background: "transparent", display: "flex", gap: "14px", flexWrap: "wrap", marginTop: tone === "dark" ? "34px" : 0 }}
+      style={{
+        background: "transparent",
+        display: "flex",
+        gap: "14px",
+        flexWrap: "wrap",
+        // Dans le hero, `.hero .wrap` n'a pas de padding bas (il venait de `.dates`,
+        // 62px) : on redonne cet air sous les boutons pour qu'ils ne collent pas au
+        // bord. Le bloc de clôture, lui, vit dans une <section> déjà rythmée.
+        marginTop: tone === "dark" ? "34px" : 0,
+        marginBottom: tone === "dark" ? "62px" : 0,
+      }}
     >
       <button type="button" className={primaryClass} onClick={() => router.push(primary.href)}>
         {primary.label}
