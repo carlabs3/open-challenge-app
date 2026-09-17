@@ -47,6 +47,7 @@ export default function MonEspacePage() {
   const idea = data.idea;
   const incoming = data.requests?.incoming ?? [];
   const outgoing = data.requests?.outgoing ?? [];
+  const invitations = data.invitations ?? [];
   const isCoord = idea && String(idea.coord) === String(me.id);
 
   async function decide(reqId, accept) {
@@ -69,8 +70,6 @@ export default function MonEspacePage() {
     sessionStorage.setItem("open-edit", String(idea.id));
     router.push("/defis/" + idea.challengeRef);
   }
-
-  const reqCount = incoming.length + outgoing.length;
 
   return (
     <div className="view on" id="v-espace">
@@ -135,13 +134,19 @@ export default function MonEspacePage() {
             )}
           </div>
 
+          {/* Trois listes distinctes et étiquetées (phase 2) : demandes reçues sur mon
+              équipe, mes demandes envoyées, et invitations que j'ai reçues. Avant, les
+              invitations n'apparaissaient nulle part et étaient inacceptables. */}
+
+          {/* 1. Demandes reçues sur mon équipe — je décide (Accepter / Refuser). */}
           <div className="block-head">
-            <h3 id="esp-req-count">{reqCount ? `Demandes (${reqCount})` : "Aucune demande"}</h3>
-            <p>Les demandes reçues sur votre idée et celles que vous avez envoyées.</p>
+            <h3 id="esp-req-count">
+              {incoming.length ? `Demandes reçues sur mon équipe (${incoming.length})` : "Demandes reçues sur mon équipe"}
+            </h3>
+            <p>Les personnes qui souhaitent rejoindre votre équipe.</p>
           </div>
           <div className="ideas" id="esp-requests">
-            {!reqCount && <div className="empty">Rien en attente.</div>}
-
+            {!incoming.length && <div className="empty">Aucune demande pour l'instant.</div>}
             {incoming.map((r) => (
               <div className="idea" key={String(r.id)}>
                 <div className="idea-top">
@@ -165,7 +170,15 @@ export default function MonEspacePage() {
                 </div>
               </div>
             ))}
+          </div>
 
+          {/* 2. Mes demandes envoyées — état seul, sans boutons. */}
+          <div className="block-head">
+            <h3>{outgoing.length ? `Mes demandes envoyées (${outgoing.length})` : "Mes demandes envoyées"}</h3>
+            <p>L'état des demandes que vous avez envoyées pour rejoindre une équipe.</p>
+          </div>
+          <div className="ideas" id="esp-sent">
+            {!outgoing.length && <div className="empty">Aucune demande envoyée.</div>}
             {outgoing.map((r) => {
               const lbl = { en_attente: "en attente", acceptee: "acceptée", refusee: "refusée", annulee: "annulée" }[r.status];
               const pillCls = r.status === "acceptee" ? "g" : r.status === "refusee" || r.status === "annulee" ? "" : "a";
@@ -182,6 +195,39 @@ export default function MonEspacePage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* 3. Invitations reçues — je décide (Accepter l'invitation / Refuser). */}
+          <div className="block-head">
+            <h3>{invitations.length ? `Invitations reçues (${invitations.length})` : "Invitations reçues"}</h3>
+            <p>Les équipes qui vous invitent à les rejoindre.</p>
+          </div>
+          <div className="ideas" id="esp-invitations">
+            {!invitations.length && <div className="empty">Aucune invitation.</div>}
+            {invitations.map((inv) => (
+              <div className="idea" key={String(inv.id)}>
+                <div className="idea-top">
+                  <h3>
+                    {inv.inviterName
+                      ? `${inv.inviterName} vous invite à rejoindre « ${inv.idea.title} »`
+                      : `Vous êtes invité à rejoindre « ${inv.idea.title} »`}
+                    {inv.idea.challengeRef ? ` sur le défi ${inv.idea.challengeRef}` : ""}
+                  </h3>
+                  <span className="pill b">invitation reçue</span>
+                </div>
+                <div className="idea-foot">
+                  <span>Reçue le {shortDate(inv.createdAt)}</span>
+                  <div className="acts">
+                    <button type="button" className="btn btn-s btn-g" onClick={() => decide(inv.id, true)}>
+                      Accepter l'invitation
+                    </button>
+                    <button type="button" className="btn btn-s btn-ghost" onClick={() => decide(inv.id, false)}>
+                      Refuser
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div style={{ marginTop: "44px", display: "flex", gap: "12px", flexWrap: "wrap" }}>

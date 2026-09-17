@@ -69,19 +69,30 @@ Fíltralo en el servidor, no en el frontend.
 ```js
 {
   idea: { type: ObjectId, ref: "Idea", required: true },
-  from: { type: ObjectId, ref: "Participant", required: true },
+  from: { type: ObjectId, ref: "Participant", required: true },   // demande: le demandeur ; invitation: la personne invitée
   coord: { type: ObjectId, ref: "Participant", required: true },  // copiado de la idea
-  note: String,                                                    // "Un mot pour l'équipe"
+  direction: { type: String, enum: ["demande","invitation"], default: "demande" },
+  proposedBy: { type: ObjectId, ref: "Participant" },             // quién invitó (miembro, no forzosamente el coord)
+  note: String,                                                    // "Un mot pour l'équipe" / mot pour la personne invitée
   status: { type: String, enum: ["en_attente","acceptee","refusee","annulee"], default: "en_attente" },
   decidedBy: { type: ObjectId, ref: "Participant" },
   decidedAt: Date
 }
 ```
 Índice único parcial sobre `{ idea, from }` con `status: "en_attente"`: impide
-dos solicitudes simultáneas a la misma idea.
+dos solicitudes **o invitaciones** simultáneas de la misma persona sobre la misma
+idea. La colisión (código 11000) se traduce en un 409 con mensaje claro, nunca un
+500. No hacen falta estados nuevos: no existe « a_valider ».
 
 `coord` está duplicado a propósito: permite comprobar permisos con una sola
 consulta plana en lugar de mirar dentro de la relación.
+
+**`direction`** distingue los dos sentidos:
+- `"demande"` — la persona pide entrar; **el coordinador** acepta/rechaza.
+- `"invitation"` — un miembro (`proposedBy`) invita; `from` es la persona invitada
+  y es **ella** quien acepta/rechaza (desde « Invitations reçues »).
+Cualquier miembro del equipo puede invitar directamente; no hay validación previa
+del coordinador.
 
 ### Notification
 ```js
@@ -159,8 +170,20 @@ elige desde el enlace, nunca desde el formulario de la web.
 ```
 
 ### `GET /api/me`
-Requiere token. Devuelve `{ me, idea, requests: { incoming[], outgoing[] }, notifications[] }`.
-Es lo que necesita « Mon espace » de una sola vez.
+Requiere token. Devuelve
+`{ me, idea, requests: { incoming[], outgoing[] }, invitations[], notifications[] }`.
+Es lo que necesita « Mon espace » de una sola vez. Tres listas **separadas por
+`direction`**:
+- `requests.incoming` — demandes recibidas en las ideas que coordino (`direction:"demande"`).
+- `requests.outgoing` — demandes que yo envié (`direction:"demande"`). Nunca invitaciones.
+- `invitations` — invitaciones que yo recibí (`from = yo`, `direction:"invitation"`,
+  `status:"en_attente"`), enriquecidas con `{ idea:{id,title,challengeRef}, inviterName }`.
+  Antes no salían en ninguna lista y eran inaceptables desde la interfaz.
+
+Si tengo equipo, `idea` incluye además `pendingInvitations` (nº de invitaciones
+en espera de mi equipo) e `inProgressFrom` (ids de personas con una demande o
+invitación en curso sobre mi equipo). « Participants » los usa para saber si puede
+invitar y mostrar el motivo cuando no.
 
 ### `PATCH /api/me`
 Requiere sesión. Rectificación RGPD de los datos propios. **Solo** estos campos;
@@ -283,13 +306,36 @@ obligatorio: pedirlo hace que nadie responda.
 
 ### `POST /api/ideas/:id/invite`
 ```
-{ participantId }
+{ participantId, note? }
 → 201 { invitation }
+→ 403 { error: "Seuls les membres de l'équipe peuvent inviter." }
+→ 409 { error: "Votre équipe est complète : cinq personnes au maximum." }
+→ 409 { error: "Votre équipe compte déjà autant d'invitations en attente que de places libres. Attendez une réponse avant d'en envoyer une autre." }
+→ 409 { error: "Cette personne fait déjà partie d'une équipe." }
+→ 409 { error: "Cette personne a déjà une demande ou une invitation en cours sur votre équipe." }  // colisión índice único
 ```
-El sentido contrario de una solicitud: solo miembros de la idea, y solo hacia
-participantes con `visible: true` y sin equipo. Se guarda como `JoinRequest`
-con un campo `direction: "invitation"` y la acepta la persona invitada, no el
-coordinador.
+El sentido contrario de una solicitud: **cualquier miembro** de la idea (no solo
+el coordinador), hacia participantes con `visible: true` y sin equipo. Se guarda
+como `JoinRequest` con `direction: "invitation"`, `from` = la persona invitada,
+`proposedBy` = quien invita; la acepta la persona invitada, no el coordinador.
+`note` es un mensaje opcional para la persona invitada.
+
+**Límite de invitaciones — se valida en el servidor, en la misma petición que
+las crea** (no un recuento del cliente): las invitaciones en espera de un equipo
+no pueden superar las plazas libres (`5 − membres.length`).
+
+Correos: a la persona invitada (con enlace directo a « Mon espace » y la `note`),
+y a los **demás** miembros del equipo (« {Membre} a invité {Nom}… »).
+
+**Cancelaciones automáticas** (`status: "annulee"` + aviso a las personas):
+- al cerrar la idea (`/close`) o al llegar a 5 miembros (`/requests/:id/accept`),
+  todas las invitaciones en espera del equipo se anulan;
+- al aceptar una invitación o una solicitud, las demás invitaciones en espera de
+  esa persona se anulan (una sola equipo por persona).
+
+La persona invitada acepta con `POST /api/requests/:id/accept` (solo ella) y
+rechaza con `POST /api/requests/:id/refuse` (solo ella). Una `direction:"demande"`
+sigue siendo cosa del coordinador.
 
 ### `POST /api/notifications/read`
 Marca como leídas las notificaciones del usuario.

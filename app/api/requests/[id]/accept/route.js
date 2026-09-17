@@ -3,7 +3,7 @@ import { Participant, Idea, JoinRequest } from "@/lib/models";
 import { getSessionParticipant } from "@/lib/session";
 import { notify } from "@/lib/notify";
 import { send } from "@/lib/mail";
-import { demandeAcceptee } from "@/lib/emails";
+import { demandeAcceptee, invitationAnnulee } from "@/lib/emails";
 import { handler, json, fail } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -100,5 +100,29 @@ export const POST = handler(async (_req, { params }) => {
   }
 
   const fresh = await Idea.findById(idea._id);
+
+  // Équipe complète (5 personnes) : les invitations encore en attente de CETTE
+  // équipe n'ont plus de place. On les annule et on prévient les personnes (2.5).
+  if (fresh.membres.length >= 5) {
+    const stillPending = await JoinRequest.find({ idea: idea._id, status: "en_attente", direction: "invitation" });
+    if (stillPending.length) {
+      await JoinRequest.updateMany(
+        { _id: { $in: stillPending.map((r) => r._id) } },
+        { $set: { status: "annulee", decidedAt: new Date() } }
+      );
+      const persons = await Participant.find({ _id: { $in: stillPending.map((r) => r.from) } }).select("name email").lean();
+      const perById = new Map(persons.map((p) => [String(p._id), p]));
+      for (const inv of stillPending) {
+        const per = perById.get(String(inv.from));
+        await notify(
+          inv.from,
+          "invitation",
+          `L'équipe « ${idea.title} » a finalisé sa composition : l'invitation qui vous avait été envoyée est annulée.`
+        );
+        if (per) await send({ to: per.email, ...invitationAnnulee({ name: per.name, title: idea.title }) }); // mail 5c
+      }
+    }
+  }
+
   return json({ idea: fresh.toPublic({ member: true }), cancelled: cancelled.length });
 });

@@ -22,13 +22,27 @@ export const GET = handler(async () => {
     ? (await Participant.find({ _id: { $in: idea.membres } }).select("name").lean()).map((p) => p.name)
     : [];
 
-  const [incomingRaw, outgoingRaw, notifications] = await Promise.all([
+  const [incomingRaw, outgoingRaw, invitationsRaw, notifications] = await Promise.all([
     // Demandes reçues sur les idées que je coordonne (uniquement des « demande »).
     JoinRequest.find({ coord: me._id, status: "en_attente", direction: "demande" }).sort({ createdAt: -1 }).lean(),
-    // Demandes que j'ai envoyées.
+    // Demandes que J'AI envoyées. `direction: "demande"` exclut les invitations :
+    // une invitation reçue n'est pas une demande envoyée par moi.
     JoinRequest.find({ from: me._id, direction: "demande" }).sort({ createdAt: -1 }).lean(),
+    // Invitations que J'AI reçues (from = moi, direction "invitation"), en attente.
+    // Elles n'apparaissaient nulle part et étaient donc inacceptables (voir API.md).
+    JoinRequest.find({ from: me._id, status: "en_attente", direction: "invitation" }).sort({ createdAt: -1 }).lean(),
     Notification.find({ to: me._id }).sort({ createdAt: -1 }).limit(50).lean(),
   ]);
+
+  // Invitations en attente sur MON équipe : sert à « Participants » pour savoir
+  // combien de places sont déjà réservées et qui a déjà quelque chose en cours.
+  let pendingInvitations = 0;
+  let inProgressFrom = [];
+  if (idea) {
+    const teamPending = await JoinRequest.find({ idea: idea._id, status: "en_attente" }).select("from direction").lean();
+    inProgressFrom = [...new Set(teamPending.map((r) => String(r.from)))];
+    pendingInvitations = teamPending.filter((r) => r.direction === "invitation").length;
+  }
 
   // Enrichir les demandes reçues avec le profil du demandeur (jamais son mail).
   const fromIds = incomingRaw.map((r) => r.from);
@@ -46,8 +60,8 @@ export const GET = handler(async () => {
     };
   });
 
-  // Enrichir les demandes envoyées avec l'idée visée et son défi.
-  const ideaIds = outgoingRaw.map((r) => r.idea);
+  // Enrichir demandes envoyées ET invitations reçues avec l'idée visée et son défi.
+  const ideaIds = [...new Set([...outgoingRaw, ...invitationsRaw].map((r) => String(r.idea)))];
   const ideas = ideaIds.length
     ? await Idea.find({ _id: { $in: ideaIds } }).select("title challenge").lean()
     : [];
@@ -55,23 +69,53 @@ export const GET = handler(async () => {
   const challRefById = new Map(
     (await Challenge.find({ _id: { $in: ideas.map((i) => i.challenge) } }).select("ref").lean()).map((c) => [String(c._id), c.ref])
   );
+  const challRefOfIdea = (ideaId) => {
+    const i = ideaById.get(String(ideaId));
+    return i ? challRefById.get(String(i.challenge)) ?? null : null;
+  };
   const outgoing = outgoingRaw.map((r) => {
     const i = ideaById.get(String(r.idea));
     return {
       id: r._id,
-      idea: { id: r.idea, title: i?.title ?? "—", challengeRef: i ? challRefById.get(String(i.challenge)) ?? null : null },
+      idea: { id: r.idea, title: i?.title ?? "—", challengeRef: challRefOfIdea(r.idea) },
       status: r.status,
+      createdAt: r.createdAt,
+    };
+  });
+
+  // Invitations reçues : qui m'invite (proposedBy, à défaut le coordinateur) + l'idée.
+  const inviterIds = invitationsRaw.map((r) => r.proposedBy || r.coord).filter(Boolean);
+  const inviters = inviterIds.length
+    ? await Participant.find({ _id: { $in: inviterIds } }).select("name").lean()
+    : [];
+  const inviterById = new Map(inviters.map((p) => [String(p._id), p]));
+  const invitations = invitationsRaw.map((r) => {
+    const i = ideaById.get(String(r.idea));
+    const inviter = inviterById.get(String(r.proposedBy || r.coord));
+    return {
+      id: r._id,
+      idea: { id: r.idea, title: i?.title ?? "—", challengeRef: challRefOfIdea(r.idea) },
+      inviterName: inviter?.name ?? null,
       createdAt: r.createdAt,
     };
   });
 
   return json({
     me: me.toMe(),
-    // Membre de mon équipe : j'ai droit au champ `full`. On ajoute la réf du défi.
+    // Membre de mon équipe : j'ai droit au champ `full`. On ajoute la réf du défi
+    // et l'état des invitations en attente de l'équipe (pour « Participants »).
     idea: idea
-      ? { ...idea.toPublic({ member: true }), challengeRef: myChallengeRef, challengeTitle: myChallenge?.title ?? null, membresNames }
+      ? {
+          ...idea.toPublic({ member: true }),
+          challengeRef: myChallengeRef,
+          challengeTitle: myChallenge?.title ?? null,
+          membresNames,
+          pendingInvitations,
+          inProgressFrom,
+        }
       : null,
     requests: { incoming, outgoing },
+    invitations,
     notifications,
   });
 });

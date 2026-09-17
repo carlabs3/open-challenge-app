@@ -1,7 +1,9 @@
 import { dbConnect } from "@/lib/db";
-import { Idea, JoinRequest } from "@/lib/models";
+import { Idea, JoinRequest, Participant } from "@/lib/models";
 import { getSessionParticipant } from "@/lib/session";
 import { notify } from "@/lib/notify";
+import { send } from "@/lib/mail";
+import { invitationAnnulee } from "@/lib/emails";
 import { handler, json, fail } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -34,12 +36,33 @@ export const POST = handler(async (_req, { params }) => {
       { _id: { $in: pending.map((r) => r._id) } },
       { $set: { status: "annulee", decidedAt: new Date() } }
     );
+    // Adresses des personnes invitées : la clôture annule leur invitation, il faut
+    // les prévenir par mail (une demande, elle, se referme côté demandeur seul).
+    const invited = pending.filter((r) => r.direction === "invitation");
+    const emailById = new Map(
+      invited.length
+        ? (await Participant.find({ _id: { $in: invited.map((r) => r.from) } }).select("name email").lean()).map((p) => [
+            String(p._id),
+            p,
+          ])
+        : []
+    );
     for (const r of pending) {
-      await notify(
-        r.from,
-        "demande",
-        `L'équipe « ${idea.title} » a clôturé ses candidatures : votre demande n'est plus en attente.`
-      );
+      if (r.direction === "invitation") {
+        const per = emailById.get(String(r.from));
+        await notify(
+          r.from,
+          "invitation",
+          `L'équipe « ${idea.title} » a finalisé sa composition : l'invitation qui vous avait été envoyée est annulée.`
+        );
+        if (per) await send({ to: per.email, ...invitationAnnulee({ name: per.name, title: idea.title }) }); // mail 5c
+      } else {
+        await notify(
+          r.from,
+          "demande",
+          `L'équipe « ${idea.title} » a clôturé ses candidatures : votre demande n'est plus en attente.`
+        );
+      }
     }
   }
 
