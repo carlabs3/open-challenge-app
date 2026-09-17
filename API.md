@@ -129,8 +129,14 @@ nunca `passwordHash`.
 → 401 { error: "Adresse ou mot de passe incorrect." }
 ```
 Un solo mensaje para los dos casos: no revelar si la dirección existe.
-`emailVerified` NO bloquea el login: es solo una bandera informativa (alimenta la
-etiqueta « à confirmer » de las ideas).
+`emailVerified` NO bloquea el login: es solo una bandera informativa.
+
+> **Contradicción resuelta (fase 1).** La etiqueta « à confirmer » de las ideas se
+> retiró de la interfaz. El campo `Idea.confirmed` refleja la verificación del
+> correo del coordinador, **no** una acción de apertura de la idea, y ningún botón
+> lo cambia; mostrarlo prometía una acción inexistente. El campo se conserva en el
+> modelo (sin uso en la UI). Afectó a `IdeaCard.js` (píldora eliminada) y al correo
+> `ideePubliee` (frase « Elle reste marquée « à confirmer »… » eliminada).
 
 ### `POST /api/auth/logout`
 ```

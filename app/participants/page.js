@@ -65,7 +65,11 @@ export default function ParticipantsPage() {
               <div className="empty">Personne ne correspond à ce filtre.</div>
             ) : (
               shown.map((p) => {
-                const canInvite = me && myIdea && !p.challengeRef && String(p.id) !== String(me.id);
+                // TODO — réactivé en phase 2. L'invitée ne voit l'invitation nulle part dans
+                // « Mon espace », donc elle ne peut pas l'accepter : mieux vaut aucun bouton
+                // qu'un bouton qui laisse quelqu'un en plan. La route POST /api/ideas/[id]/invite
+                // et le gabarit de mail restent en place, seul le déclencheur est masqué.
+                const canInvite = false;
                 return (
                   <div className="pers" key={String(p.id)}>
                     <p className="n">{p.name}</p>

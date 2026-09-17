@@ -124,7 +124,7 @@ export default function MonEspacePage() {
                   <span>{(idea.membresNames || []).join(", ")}</span>
                   <div className="acts">
                     <button type="button" className="btn btn-s btn-ghost" onClick={() => router.push("/defis/" + idea.challengeRef)}>
-                      Ouvrir le défi
+                      Voir le défi
                     </button>
                     <button type="button" className="btn btn-s btn-ghost" onClick={openEditMyIdea}>
                       Modifier l'idée

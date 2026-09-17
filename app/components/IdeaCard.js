@@ -28,7 +28,9 @@ export default function IdeaCard({ idea, open, myIdea, onEdit, onJoin, onClose }
       <div className="idea-top">
         <h3>{idea.title}</h3>
         <div style={{ display: "flex", gap: "7px", flexWrap: "wrap", alignItems: "center" }}>
-          {!idea.confirmed && <span className="pill a">à confirmer</span>}
+          {/* La pastille « à confirmer » a été retirée : le champ `confirmed` est lié à la
+              vérification de l'adresse mail, pas à une ouverture d'idée, et aucun bouton ne
+              le change. Le libellé promettait une action inexistante (voir API.md). */}
           {member && <span className="pill b">{idea.isCoord ? "vous coordonnez" : "votre équipe"}</span>}
           <span className={"pill " + (open ? "g" : "")}>{open ? "cherche des profils" : "candidatures closes"}</span>
         </div>
@@ -63,6 +65,13 @@ export default function IdeaCard({ idea, open, myIdea, onEdit, onJoin, onClose }
         <p className="small mut">
           Vous êtes déjà engagé dans une équipe sur le défi {myIdea.challengeRef}.
         </p>
+      )}
+
+      {/* Le bouton « Rejoindre » est désactivé quand une demande est déjà partie : le motif
+          doit être visible à l'écran, pas seulement dans l'attribut `title`. Le cas « déjà
+          en équipe » est traité au-dessus ; celui-ci le complète. */}
+      {open && !member && !hasTeam && idea.requested && (
+        <p className="small mut">Votre demande est en attente de réponse.</p>
       )}
     </div>
   );
