@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getParticipants, invite } from "@/lib/api";
 import { DISC } from "@/lib/constants";
 import { useAuth } from "../components/AuthProvider";
@@ -32,15 +32,48 @@ export default function ParticipantsPage() {
   const [inviteErr, setInviteErr] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Modal : le panneau reçoit le focus à l'ouverture ; la carte cliquée le récupère
+  // à la fermeture.
+  const panelRef = useRef(null);
+  const triggerRef = useRef(null);
+
   const load = () => getParticipants().then(setPeople).catch(() => setPeople([]));
   useEffect(() => {
     load();
   }, []);
 
+  // Tant que la fiche (modal) est ouverte : scroll du body bloqué, Escape ferme,
+  // focus sur le panneau ; au démontage, on rend le scroll et le focus à la carte.
+  useEffect(() => {
+    if (!selected) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panelRef.current?.focus();
+    const onKey = (e) => {
+      if (e.key === "Escape") closeFiche();
+    };
+    document.addEventListener("keydown", onKey);
+    const trigger = triggerRef.current;
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+      trigger?.focus();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
   const myIdea = data?.idea ?? null;
 
-  function openFiche(p) {
+  function openFiche(p, el) {
+    triggerRef.current = el || null;
     setSelected(p);
+    setInviteOpen(false);
+    setInviteNote("");
+    setInviteErr("");
+  }
+
+  function closeFiche() {
+    setSelected(null);
     setInviteOpen(false);
     setInviteNote("");
     setInviteErr("");
@@ -122,11 +155,26 @@ export default function ParticipantsPage() {
           </p>
           <div id="dir-notices">{notice && <div className="notice">{notice}</div>}</div>
 
-          {/* Fiche du participant sélectionné — même motif de panneau que le formulaire de
-              demande. Profil complet, jamais l'adresse mail. */}
+          {/* Fiche du participant sélectionné — panneau `.panel` présenté en modal centré
+              (overlay + centrage ajoutés dans globals.css). Profil complet, jamais l'adresse
+              mail. Ferme au clic sur le fond, sur « Fermer » ou avec Escape. */}
           {selected && (
-            <div className="panel" id="fiche-panel">
-              <h3>{selected.name}</h3>
+            <div
+              className="modal-overlay"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) closeFiche();
+              }}
+            >
+              <div
+                className="panel modal-panel"
+                id="fiche-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="fiche-name"
+                tabIndex={-1}
+                ref={panelRef}
+              >
+                <h3 id="fiche-name">{selected.name}</h3>
               <p className="small mut" style={{ margin: "6px 0 14px" }}>
                 {selected.lab}
                 {selected.challengeRef ? ` · participe au défi ${selected.challengeRef}` : ""}
@@ -193,11 +241,12 @@ export default function ParticipantsPage() {
                 </div>
               )}
 
-              <p style={{ marginTop: "22px" }}>
-                <button type="button" className="btn btn-s btn-ghost" onClick={() => setSelected(null)}>
-                  Fermer
-                </button>
-              </p>
+                <p style={{ marginTop: "22px" }}>
+                  <button type="button" className="btn btn-s btn-ghost" onClick={closeFiche}>
+                    Fermer
+                  </button>
+                </p>
+              </div>
             </div>
           )}
 
@@ -242,11 +291,11 @@ export default function ParticipantsPage() {
                     tabIndex={0}
                     aria-pressed={!!isSel}
                     style={{ cursor: "pointer" }}
-                    onClick={() => openFiche(p)}
+                    onClick={(e) => openFiche(p, e.currentTarget)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        openFiche(p);
+                        openFiche(p, e.currentTarget);
                       }
                     }}
                   >
