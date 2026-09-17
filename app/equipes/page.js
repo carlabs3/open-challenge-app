@@ -50,8 +50,11 @@ export default function EquipesPage() {
   }
 
   // Rejoindre depuis « Les équipes » : le formulaire s'ouvre en modal, ici même.
-  // À l'envoi, on met à jour la carte sur place (requested=true → bouton « Demande
-  // envoyée » désactivé), sans recharger ni naviguer.
+  // afterJoin n'est appelé PAR JoinForm QU'APRÈS un POST réussi (JoinForm.js : le
+  // `await onDone(...)` est dans le `try`, après `await requestJoin`). En cas
+  // d'échec (409, réseau), JoinForm reste ouvert et affiche l'erreur du serveur ;
+  // la carte n'est PAS marquée. On met donc à jour la carte sur place (requested=true
+  // → bouton « Demande envoyée » désactivé) sans recharger ni naviguer.
   async function afterJoin(message) {
     const id = joinIdea?.id;
     setPayload((prev) =>
