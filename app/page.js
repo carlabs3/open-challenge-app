@@ -1,5 +1,6 @@
 import HomeChallenges from "./components/HomeChallenges";
 import HeroMedia from "./components/HeroMedia";
+import HomeCta from "./components/HomeCta";
 import { OrgLogo, France2030Logo } from "./components/OrgLogo";
 
 /**
@@ -28,6 +29,8 @@ export default function HomePage() {
               <b className="hl">10 000 €</b> de prix
             </span>
           </div>
+          {/* C.2 — appel à l'action du hero (paire de boutons selon la session). */}
+          <HomeCta tone="dark" />
         </div>
       </div>
 
@@ -243,6 +246,13 @@ export default function HomePage() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* C.2 — bloc de clôture : même paire de boutons, pour qui a lu jusqu'en bas. */}
+      <section className="tight">
+        <div className="wrap">
+          <HomeCta tone="light" />
         </div>
       </section>
 
