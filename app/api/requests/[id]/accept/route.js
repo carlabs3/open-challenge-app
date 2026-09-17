@@ -1,9 +1,9 @@
 import { dbConnect } from "@/lib/db";
-import { Participant, Idea, JoinRequest } from "@/lib/models";
+import { Participant, Idea, JoinRequest, Challenge } from "@/lib/models";
 import { getSessionParticipant } from "@/lib/session";
 import { notify } from "@/lib/notify";
 import { send } from "@/lib/mail";
-import { demandeAcceptee, invitationAnnulee } from "@/lib/emails";
+import { demandeAcceptee, invitationAcceptee, invitationAccepteeInviteur, invitationAnnulee } from "@/lib/emails";
 import { handler, json, fail } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -80,13 +80,34 @@ export const POST = handler(async (_req, { params }) => {
     );
   }
 
-  // 5. Prévenir (mail = canal principal, cloche = reflet).
-  await notify(
-    claimed._id,
-    "equipe",
-    `Votre demande pour « ${idea.title} » a été acceptée. Vous faites maintenant partie de l'équipe.`
-  );
-  await send({ to: claimed.email, ...demandeAcceptee({ name: claimed.name, title: idea.title }) }); // mail 4a
+  // 5. Prévenir (mail = canal principal, cloche = reflet). Le texte diffère selon
+  // qu'on accepte une demande (le coordinateur accepte) ou une invitation (la
+  // personne invitée accepte elle-même).
+  const memberCount = idea.membres.length + 1; // membres d'avant + la personne ajoutée
+  if (request.direction === "invitation") {
+    const chall = await Challenge.findById(idea.challenge).select("ref").lean();
+    await notify(
+      claimed._id,
+      "equipe",
+      `Vous avez rejoint l'équipe « ${idea.title} ». Vous en faites maintenant partie.`
+    );
+    await send({ to: claimed.email, ...invitationAcceptee({ name: claimed.name, title: idea.title, ref: chall?.ref ?? "" }) }); // mail 4c
+    // Avis au membre qui avait invité (proposedBy).
+    if (request.proposedBy) {
+      const inviter = await Participant.findById(request.proposedBy).select("name email").lean();
+      if (inviter) {
+        await notify(inviter._id, "invitation", `${claimed.name} a accepté votre invitation à rejoindre « ${idea.title} ».`);
+        await send({ to: inviter.email, ...invitationAccepteeInviteur({ name: claimed.name, title: idea.title, count: memberCount }) }); // mail 4d
+      }
+    }
+  } else {
+    await notify(
+      claimed._id,
+      "equipe",
+      `Votre demande pour « ${idea.title} » a été acceptée. Vous faites maintenant partie de l'équipe.`
+    );
+    await send({ to: claimed.email, ...demandeAcceptee({ name: claimed.name, title: idea.title }) }); // mail 4a
+  }
   for (const other of cancelled) {
     const otherIdea = await Idea.findById(other.idea).lean();
     await notify(
