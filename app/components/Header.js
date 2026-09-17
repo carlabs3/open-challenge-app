@@ -27,19 +27,17 @@ export default function Header() {
   const notifications = data?.notifications ?? [];
   const unread = notifications.filter((n) => !n.read).length;
 
-  const accountHref = me ? "/mon-espace" : "/participer";
-  const accountLabel = me ? "Mon espace" : "Participer";
-
+  // C.1 — une seule entrée de compte. Sans session : « Se connecter » (ouvre
+  // l'onglet connexion de /participer ; le formulaire d'inscription reste dans
+  // l'autre onglet de la même page). Avec session : « Mon espace ».
   const NAV = [
     { label: "Le challenge", href: "/" },
     { label: "Les défis", href: "/defis" },
     { label: "Les équipes", href: "/equipes" },
     { label: "Participants", href: "/participants" },
-    // Sans session : un accès direct au formulaire de connexion (ouvre l'onglet
-    // « J'ai déjà un compte »), en plus de « Participer ». On ne touche pas au
-    // libellé qui alterne Participer / Mon espace.
-    ...(me ? [] : [{ label: "Se connecter", href: "/participer", login: true, id: "nav-login" }]),
-    { label: accountLabel, href: accountHref, id: "nav-account" },
+    me
+      ? { label: "Mon espace", href: "/mon-espace", id: "nav-account" }
+      : { label: "Se connecter", href: "/participer", login: true, id: "nav-account" },
   ];
 
   const isCurrent = (href) => {

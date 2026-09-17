@@ -36,7 +36,14 @@ export default function IdentityFields({ value, onChange, errors = {} }) {
     <div className="ident">
       <div style={{ display: "flex", gap: "14px", alignItems: "baseline", flexWrap: "wrap" }}>
         <p className="small mut">Première action sur le site : ce formulaire vous inscrit en même temps.</p>
-        <button type="button" className="link" onClick={() => router.push("/participer")}>
+        <button
+          type="button"
+          className="link"
+          onClick={() => {
+            sessionStorage.setItem("participer-tab", "log"); // C.1 — ouvrir l'onglet connexion
+            router.push("/participer");
+          }}
+        >
           Déjà inscrit ? Se connecter
         </button>
       </div>

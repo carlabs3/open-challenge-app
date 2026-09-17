@@ -53,7 +53,14 @@ export default function ResetPage() {
             <div className="notice">
               Votre mot de passe a été changé. Vous pouvez maintenant vous connecter.
               <div style={{ marginTop: "18px" }}>
-                <button type="button" className="btn btn-p" onClick={() => router.push("/participer")}>
+                <button
+                  type="button"
+                  className="btn btn-p"
+                  onClick={() => {
+                    sessionStorage.setItem("participer-tab", "log"); // C.1 — ouvrir l'onglet connexion
+                    router.push("/participer");
+                  }}
+                >
                   Se connecter
                 </button>
               </div>

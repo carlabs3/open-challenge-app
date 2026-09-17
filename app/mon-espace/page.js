@@ -31,9 +31,12 @@ export default function MonEspacePage() {
   const [confirmTitle, setConfirmTitle] = useState("");
   const [deleteErr, setDeleteErr] = useState("");
 
-  // Redirection si non connecté (une fois l'état chargé).
+  // Redirection si non connecté (une fois l'état chargé) — vers l'onglet connexion.
   useEffect(() => {
-    if (!loading && !me) router.replace("/participer");
+    if (!loading && !me) {
+      sessionStorage.setItem("participer-tab", "log"); // C.1
+      router.replace("/participer");
+    }
   }, [loading, me, router]);
 
   // Notices reprises de l'inscription (posées par la page « Participer »).
@@ -71,6 +74,7 @@ export default function MonEspacePage() {
   async function logout() {
     await auth.logout().catch(() => {});
     await refresh();
+    sessionStorage.setItem("participer-tab", "log"); // C.1 — après déconnexion, onglet connexion
     router.push("/participer");
   }
 
