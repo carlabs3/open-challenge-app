@@ -18,6 +18,11 @@ export default function ParticipantsPage() {
   const { me, data, refresh } = useAuth();
   const [people, setPeople] = useState([]);
   const [dirFilter, setDirFilter] = useState("all");
+  // Filtre par discipline (4.3), combinable avec le filtre d'équipe. Les codes
+  // viennent de DISC (lib/constants), qui reprend à l'identique DISCIPLINES de
+  // lib/models.js : on n'importe pas lib/models côté client (il embarquerait
+  // mongoose dans le bundle).
+  const [discFilter, setDiscFilter] = useState("all");
   const [notice, setNotice] = useState("");
 
   // Fiche ouverte + état du sous-formulaire d'invitation.
@@ -90,9 +95,11 @@ export default function ParticipantsPage() {
     }
   }
 
-  const shown = people.filter((p) =>
-    dirFilter === "all" ? true : dirFilter === "free" ? !p.challengeRef : Boolean(p.challengeRef)
-  );
+  const shown = people.filter((p) => {
+    const okDir = dirFilter === "all" ? true : dirFilter === "free" ? !p.challengeRef : Boolean(p.challengeRef);
+    const okDisc = discFilter === "all" || (p.disc || []).includes(discFilter);
+    return okDir && okDisc;
+  });
 
   const Chip = ({ k, label }) => (
     <button type="button" className="chip" aria-pressed={k === dirFilter} onClick={() => setDirFilter(k)}>
@@ -195,9 +202,31 @@ export default function ParticipantsPage() {
           )}
 
           <div className="filters" id="dir-filters">
+            <span className="small mut" style={{ marginRight: "4px" }}>
+              Équipe
+            </span>
             <Chip k="all" label="Tout le monde" />
             <Chip k="free" label="Sans équipe" />
             <Chip k="engaged" label="Déjà en équipe" />
+          </div>
+          <div className="filters" id="dir-disc-filters">
+            <span className="small mut" style={{ marginRight: "4px" }}>
+              Discipline
+            </span>
+            <button type="button" className="chip" aria-pressed={discFilter === "all"} onClick={() => setDiscFilter("all")}>
+              Toutes
+            </button>
+            {Object.keys(DISC).map((k) => (
+              <button
+                type="button"
+                key={k}
+                className="chip"
+                aria-pressed={discFilter === k}
+                onClick={() => setDiscFilter(k)}
+              >
+                {DISC[k]}
+              </button>
+            ))}
           </div>
           <div className="dir" id="dir-list">
             {!shown.length ? (

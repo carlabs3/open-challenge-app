@@ -1,5 +1,6 @@
 import { dbConnect } from "@/lib/db";
 import { Challenge, Idea, Participant, DISCIPLINES } from "@/lib/models";
+import { buildIdeaViews } from "@/lib/ideas";
 import { getSessionParticipant } from "@/lib/session";
 import { notify, notifyMany } from "@/lib/notify";
 import { send } from "@/lib/mail";
@@ -9,6 +10,38 @@ import { handler, json, fail } from "@/lib/http";
 export const dynamic = "force-dynamic";
 
 const cleanDisc = (arr) => (Array.isArray(arr) ? arr.filter((d) => DISCIPLINES.includes(d)) : []);
+
+/**
+ * GET /api/ideas — public. TOUTES les idées visibles de TOUS les défis, pour la
+ * page « Les équipes ». Mêmes règles de visibilité que GET /api/challenges/:ref
+ * (helper partagé buildIdeaViews). Chaque carte porte son défi (ref/titre/thème).
+ *
+ * Ordre des défis = celui de /defis (nombre d'idées publiques croissant, ref en
+ * départage) ; l'ordre à l'intérieur d'un défi est géré par le helper.
+ */
+export const GET = handler(async () => {
+  await dbConnect();
+  const me = await getSessionParticipant();
+
+  const [challenges, all] = await Promise.all([
+    Challenge.find().select("_id ref").lean(),
+    Idea.find().lean(),
+  ]);
+
+  const publicCount = new Map();
+  for (const i of all) {
+    if (i.moderation === "retiree" || i.archived) continue;
+    const k = String(i.challenge);
+    publicCount.set(k, (publicCount.get(k) || 0) + 1);
+  }
+  const ordered = [...challenges].sort(
+    (a, b) => (publicCount.get(String(a._id)) || 0) - (publicCount.get(String(b._id)) || 0) || a.ref.localeCompare(b.ref)
+  );
+  const challOrder = new Map(ordered.map((c, idx) => [String(c._id), idx]));
+
+  const { open, closed } = await buildIdeaViews(all, me, { withChallenge: true, challOrder });
+  return json({ open, closed });
+});
 
 /**
  * POST /api/ideas — proposer une idée. Requiert une session.

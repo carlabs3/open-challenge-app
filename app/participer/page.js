@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/api";
 import { DISC, LABS } from "@/lib/constants";
@@ -20,6 +20,14 @@ export default function ParticiperPage() {
   const router = useRouter();
   const { refresh } = useAuth();
   const [tab, setTab] = useState("in");
+
+  // Arrivée depuis « Se connecter » de la navigation : ouvrir l'onglet login.
+  useEffect(() => {
+    if (sessionStorage.getItem("participer-tab") === "log") {
+      setTab("log");
+      sessionStorage.removeItem("participer-tab");
+    }
+  }, []);
 
   return (
     <div className="view on" id="v-acces">

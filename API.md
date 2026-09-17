@@ -237,9 +237,26 @@ abierta aunque conserve perfiles en `want`. El **mínimo de 3 no se valida** al
 crear (un equipo empieza con 1 persona): la organización reagrupa los equipos de
 menos de 3 antes del 26 de octubre de 2026.
 
+### `GET /api/ideas`
+Público. **Todas** las ideas visibles de **todos** los desafíos, para la página
+« Les équipes ». Mismas reglas de visibilidad que `GET /api/challenges/:ref`
+(helper compartido `buildIdeaViews` en `lib/ideas.js`), así que no se duplican ni
+divergen: `retiree`/`archived` ocultas salvo organización o miembro; en `closed`
+solo el título salvo miembro; `full` nunca sale a un no-miembro.
+```
+{ open: [...], closed: [...] }
+```
+Cada tarjeta añade `challengeRef`, `challengeTitle` y `challengeTheme` (en la
+página de un solo desafío esos campos NO se envían: el desafío es implícito).
+
+Orden: los desafíos van en el mismo orden que `/defis` (`ideaCount` ascendente,
+`ref` como desempate); dentro de cada desafío, las ideas mantienen el orden de
+inserción. El orden intra-desafío lo fija el helper, así que `/defis/:ref` y
+`/equipes` comparten exactamente el mismo criterio.
+
 ### `GET /api/participants`
 Público. Solo `visible: true`. Nunca el correo.
-`{ id, name, lab, disc, bio, li, challengeRef | null }`.
+`{ id, name, lab, disc, bio, li, challengeRef | null, chercheEquipe | null }`.
 
 ## Escritura
 

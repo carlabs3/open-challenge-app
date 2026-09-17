@@ -108,9 +108,26 @@ export default function MonEspacePage() {
             {!idea ? (
               <div className="empty">
                 <p>Choisissez un défi : proposez votre idée, ou rejoignez une équipe qui cherche votre profil.</p>
-                <button type="button" className="btn btn-s btn-g" style={{ marginTop: "18px" }} onClick={() => router.push("/defis")}>
-                  Voir les défis
-                </button>
+                {/* TODO à valider — quatre voies équivalentes après l'inscription (4.5). Toutes
+                    mènent vers l'existant : rien de neuf n'est construit derrière. */}
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center", marginTop: "18px" }}>
+                  <button type="button" className="btn btn-s btn-g" onClick={() => router.push("/defis")}>
+                    Proposer une idée
+                  </button>
+                  <button type="button" className="btn btn-s btn-ghost" onClick={() => router.push("/equipes")}>
+                    Explorer les équipes ouvertes
+                  </button>
+                  <button type="button" className="btn btn-s btn-ghost" onClick={() => router.push("/defis")}>
+                    Parcourir les défis
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-s btn-ghost"
+                    onClick={() => document.getElementById("esp-ident")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  >
+                    Rester visible sans idée
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="idea mine">

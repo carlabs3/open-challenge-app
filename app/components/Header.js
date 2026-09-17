@@ -33,7 +33,12 @@ export default function Header() {
   const NAV = [
     { label: "Le challenge", href: "/" },
     { label: "Les défis", href: "/defis" },
+    { label: "Les équipes", href: "/equipes" },
     { label: "Participants", href: "/participants" },
+    // Sans session : un accès direct au formulaire de connexion (ouvre l'onglet
+    // « J'ai déjà un compte »), en plus de « Participer ». On ne touche pas au
+    // libellé qui alterne Participer / Mon espace.
+    ...(me ? [] : [{ label: "Se connecter", href: "/participer", login: true, id: "nav-login" }]),
     { label: accountLabel, href: accountHref, id: "nav-account" },
   ];
 
@@ -71,11 +76,15 @@ export default function Header() {
           <nav className="nav" id="nav">
             {NAV.map((item) => (
               <button
-                key={item.href}
+                key={item.label}
                 type="button"
                 id={item.id}
                 aria-current={isCurrent(item.href) ? "page" : undefined}
-                onClick={() => router.push(item.href)}
+                onClick={() => {
+                  // « Se connecter » ouvre l'onglet login de « Participer ».
+                  if (item.login) sessionStorage.setItem("participer-tab", "log");
+                  router.push(item.href);
+                }}
               >
                 {item.label}
               </button>
